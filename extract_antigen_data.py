@@ -3,6 +3,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import io
 import requests
 import json
 import gzip
@@ -15,17 +16,35 @@ from Bio import SeqIO
 
 from columns import t_cell_data_columns, t_cell_columns, b_cell_data_columns, b_cell_columns
 
-def pull_iedb_assay_data(table):
-    url = 'https://query-api.iedb.org/%s_search' % table
 
+def pull_iedb_assay_data(table):
+    '''Extracts T cell and B cell positive assay data from the IEDB.'''
+
+    # first get the total number of assays as first request to loop through API
+    url = 'https://query-api.iedb.org/%s_search' % table
+    params = {'order': 'structure_id',
+              'qualitative_measure': 'neq.Negative'} # select positive assays only
+    r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
+    pages = int(r.headers['Content-Range'].split('/')[-1])
+    
+    # loop through IEDB API pages using requests - read into pandas DataFrame and concat
+    df = pd.DataFrame()
+    for i in range(pages // 10000 + 1): # API limit is 10,000 entries
+        params['offset'] = i*10000
+
+        # request API call returning csv formatting using parameters in params
+        s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+        df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+
+    return df
 
 # read in positive IEDB T cell and B cell assay tables
-print('Reading in positive T cell and B cell assay data...')
+print('Reading in positive T cell assay data...')
 pos_t_cell = pull_iedb_assay_data('tcell')
 print('Done.')
-print('Reading in positive T cell and B cell assay data...')
-pos_t_cell = pd.read_csv('pos_t.csv', header=[0,1])
-pos_b_cell = pd.read_csv('pos_b.csv', header=[0,1])
+
+print('Reading in positive B cell assay data...')
+pos_b_cell = pull_iedb_assay_data('bcell')
 print('Done.')
 
 # select only colums that are needed
