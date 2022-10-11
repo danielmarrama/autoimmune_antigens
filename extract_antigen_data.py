@@ -17,26 +17,29 @@ from Bio import SeqIO
 from columns import t_cell_data_columns, t_cell_columns, b_cell_data_columns, b_cell_columns
 
 
-def pull_iedb_assay_data(table):
-    '''Extracts T cell and B cell positive assay data from the IEDB.'''
+# TODO:
+# - Try to use 
 
-    # first get the total number of assays as first request to loop through API
-    url = 'https://query-api.iedb.org/%s_search' % table
-    params = {'order': 'structure_id',
-              'qualitative_measure': 'neq.Negative'} # select positive assays only
-    r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
-    pages = int(r.headers['Content-Range'].split('/')[-1])
+# def pull_iedb_assay_data(table):
+#     '''Extracts T cell and B cell positive assay data from the IEDB.'''
+
+#     # first get the total number of assays as first request to loop through API
+#     url = 'https://query-api.iedb.org/%s_search' % table
+#     params = {'order': 'structure_id',
+#               'qualitative_measure': 'neq.Negative'} # select positive assays only
+#     r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
+#     pages = int(r.headers['Content-Range'].split('/')[-1])
     
-    # loop through IEDB API pages using requests - read into pandas DataFrame and concat
-    df = pd.DataFrame()
-    for i in range(pages // 10000 + 1): # API limit is 10,000 entries
-        params['offset'] = i*10000
+#     # loop through IEDB API pages using requests - read into pandas DataFrame and concat
+#     df = pd.DataFrame()
+#     for i in range(pages // 10000 + 1): # API limit is 10,000 entries
+#         params['offset'] = i*10000
 
-        # request API call returning csv formatting using parameters in params
-        s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-        df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+#         # request API call returning csv formatting using parameters in params
+#         s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+#         df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
 
-    return df
+#     return df
 
 # read in positive IEDB T cell and B cell assay tables
 print('Reading in positive T cell assay data...')
@@ -106,7 +109,7 @@ print('Done.')
 print('Extracting autoimmune data...')
 
 # read in autoimmune diseases
-with open('ai_diseases.json' , 'r') as f:
+with open('autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
 
 # select autoimmune epitopes by disease labeling

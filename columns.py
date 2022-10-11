@@ -23,7 +23,6 @@ t_cell_data_columns = [('Reference', 'Assay IRI'),
                        ('Assay', 'Method/Technique'),
                        ('Assay', 'Assay Group'),
                        ('Assay', 'Qualitative Measure'),
-                       ('Effector Cells', 'Cell Type'),
                        ('MHC', 'Allele Name')]
 
 t_cell_columns = ['Assay ID', 'Reference ID', 'Epitope ID', 'Epitope', 'Antigen Name',
