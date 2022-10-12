@@ -12,7 +12,7 @@ with open('autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
 
 # TODO:
-# - Cobmine related object antigens for autoimmune data
+# - 
 
 
 #######################################################
@@ -64,10 +64,6 @@ tcell = tcell[(tcell['host_organism_iri'] == tcell['parent_source_antigen_source
               (tcell['host_organism_iri'] == tcell['r_object_source_organism_iri'])]
 bcell = bcell[(bcell['host_organism_iri'] == bcell['parent_source_antigen_source_org_iri']) | # OR  
               (bcell['host_organism_iri'] == bcell['r_object_source_organism_iri'])]
-
-# parent species is equivalent to host
-a_t_cell_epitopes = a_t_cell_epitopes[a_t_cell_epitopes['Parent Species ID'] == a_t_cell_epitopes['Host ID']]
-a_b_cell_epitopes = a_b_cell_epitopes[a_b_cell_epitopes['Parent Species ID'] == a_b_cell_epitopes['Host ID']]
 
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for T cell
 a_t_cell_counts = []
