@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
 
-import warnings
-warnings.filterwarnings("ignore")
-
 import io
 import requests
 import json
 import gzip
-import numpy as np
 import pandas as pd
 
-from pepmatch import Preprocessor, Matcher
-from collections import Counter
 from Bio import SeqIO
-
-from columns import t_cell_data_columns, t_cell_columns, b_cell_data_columns, b_cell_columns
 
 with open('autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
@@ -22,7 +14,13 @@ with open('autoimmune_diseases.json' , 'r') as f:
 # TODO:
 # - Cobmine related object antigens for autoimmune data
 
-def pull_iedb_assay_data(table):
+
+#######################################################
+################### AUTOIMMUNE DATA ###################
+#######################################################
+
+
+def pull_autoimmune_data(table):
     '''
     Extracts T cell and B cell positive assay data from the IEDB.
     Parameter table = 'tcell' or 'bcell' to specify. 
@@ -52,83 +50,20 @@ def pull_iedb_assay_data(table):
 
     return df
 
-# read in positive IEDB T cell and B cell assay tables
-print('Reading in positive T cell assay data...')
-pos_t_cell = pull_iedb_assay_data('tcell')
+# read in autoimmune IEDB T cell and B cell assay tables
+print('Reading in autoimmune T cell assay data...')
+tcell = pull_autoimmune_data('tcell')
 print('Done.')
 
-print('Reading in positive B cell assay data...')
-pos_b_cell = pull_iedb_assay_data('bcell')
+print('Reading in autoimmune B cell assay data...')
+bcell = pull_autoimmune_data('bcell')
 print('Done.')
 
-# select only colums that are needed
-t_cell_df = pos_t_cell[t_cell_data_columns]
-b_cell_df = pos_b_cell[b_cell_data_columns]
-
-# collapse headers by renaming column names
-t_cell_df.columns = t_cell_columns
-b_cell_df.columns = b_cell_columns
-
-# -------------------- Begin Data Cleaning and Organizing --------------------
-print('Cleaning and organizing data...')
-# get assay ids
-t_cell_df['Assay ID'] = t_cell_df['Assay ID'].str.split('/').str[-1]
-b_cell_df['Assay ID'] = b_cell_df['Assay ID'].str.split('/').str[-1]
-
-# get reference ids
-t_cell_df['Reference ID'] = t_cell_df['Reference ID'].str.split('/').str[-1]
-b_cell_df['Reference ID'] = b_cell_df['Reference ID'].str.split('/').str[-1]
-
-# get epitope ids
-t_cell_df['Epitope ID'] = t_cell_df['Epitope ID'].str.split('/').str[-1]
-b_cell_df['Epitope ID'] = b_cell_df['Epitope ID'].str.split('/').str[-1]
-
-# get parent protein ids
-t_cell_df['Parent Protein ID'] = t_cell_df['Parent Protein ID'].str.split('/').str[-1]
-b_cell_df['Parent Protein ID'] = b_cell_df['Parent Protein ID'].str.split('/').str[-1]
-
-# get parent protein ids
-t_cell_df['Parent Species ID'] = t_cell_df['Parent Species ID'].str.split('/').str[-1].str.split('_').str[-1]
-b_cell_df['Parent Species ID'] = b_cell_df['Parent Species ID'].str.split('/').str[-1].str.split('_').str[-1]
-
-# get related object parent protein ids
-t_cell_df['Related Object Parent Protein ID'] = t_cell_df['Related Object Parent Protein ID'].str.split('/').str[-1]
-b_cell_df['Related Object Parent Protein ID'] = b_cell_df['Related Object Parent Protein ID'].str.split('/').str[-1]
-
-# get related object parent organism ids
-t_cell_df['Related Object Parent Organism ID'] = t_cell_df['Related Object Parent Organism ID'].str.split('/').str[-1]
-b_cell_df['Related Object Parent Organism ID'] = b_cell_df['Related Object Parent Organism ID'].str.split('/').str[-1]
-
-# get host ids
-t_cell_df['Host ID'] = t_cell_df['Host ID'].str.split('_').str[-1]
-b_cell_df['Host ID'] = b_cell_df['Host ID'].str.split('_').str[-1]
-
-# get 1st in vivo disease ids
-t_cell_df['1st in vivo Disease ID'] = t_cell_df['1st in vivo Disease ID'].str.split('/').str[-1].str.split('_').str[-1]
-b_cell_df['1st in vivo Disease ID'] = b_cell_df['1st in vivo Disease ID'].str.split('/').str[-1].str.split('_').str[-1]
-
-# get 2nd in vivo disease ids
-t_cell_df['2nd in vivo Disease ID'] = t_cell_df['2nd in vivo Disease ID'].str.split('/').str[-1].str.split('_').str[-1]
-b_cell_df['2nd in vivo Disease ID'] = b_cell_df['2nd in vivo Disease ID'].str.split('/').str[-1].str.split('_').str[-1]
-print('Done.')
-# -------------------- End Data Cleaning and Organizing --------------------
-
-#######################################################
-################### AUTOIMMUNE DATA ###################
-#######################################################
-
-print('Extracting autoimmune data...')
-
-# read in autoimmune diseases
-with open('autoimmune_diseases.json' , 'r') as f:
-    diseases = json.load(f)
-
-# select autoimmune epitopes by disease labeling
-a_t_cell_epitopes = t_cell_df[(t_cell_df['1st in vivo Disease ID'].isin(list(diseases.keys()))) |
-                              (t_cell_df['2nd in vivo Disease ID'].isin(list(diseases.keys())))]
-
-a_b_cell_epitopes = b_cell_df[(b_cell_df['1st in vivo Disease ID'].isin(list(diseases.keys()))) |
-                              (b_cell_df['2nd in vivo Disease ID'].isin(list(diseases.keys())))]
+# select epitopes where host and source organism are identical
+tcell = tcell[(tcell['host_organism_iri'] == tcell['parent_source_antigen_source_org_iri']) | # OR
+              (tcell['host_organism_iri'] == tcell['r_object_source_organism_iri'])]
+bcell = bcell[(bcell['host_organism_iri'] == bcell['parent_source_antigen_source_org_iri']) | # OR  
+              (bcell['host_organism_iri'] == bcell['r_object_source_organism_iri'])]
 
 # parent species is equivalent to host
 a_t_cell_epitopes = a_t_cell_epitopes[a_t_cell_epitopes['Parent Species ID'] == a_t_cell_epitopes['Host ID']]
@@ -206,6 +141,9 @@ print('Done.')
 #######################################################
 ##################### CANCER DATA #####################
 #######################################################
+
+def pull_cancer_data(table):
+    pass
 
 print('Extracting cancer data...')
 
