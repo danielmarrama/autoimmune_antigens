@@ -12,7 +12,6 @@ with open('autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
 
 # TODO:
-# - Fix count collection for API data
 # - Add cancer API pull
 
 
@@ -80,12 +79,12 @@ bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_ob
 
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for T cell
 a_t_cell_counts = []
-for i, row in tdf.groupby('source_antigen_iri'):
+for i, row in tcell.groupby('source_antigen_iri'):
     diseases = row['disease_names']
     counts = []
     counts.append(i)
-    counts.append(', '.join(set(diseases)))
     counts.append(list(row['source_antigen_name'].dropna())[0])
+    counts.append(', '.join(set(diseases)))
     counts.append(len(row['reference_id'].unique()))
     counts.append(len(row['structure_id'].unique()))
     counts.append(len(row))
@@ -95,24 +94,24 @@ for i, row in tdf.groupby('source_antigen_iri'):
 
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for B cell
 a_b_cell_counts = []
-for i, j in a_b_cell_epitopes.groupby('Parent Protein ID'):
-    diseases = list(set(filter(None, j[['1st in vivo Disease State', '2nd in vivo Disease State']].to_numpy(na_value=None).flatten())))
+for i, row in bcell.groupby('source_antigen_iri'):
+    diseases = row['disease_names']
     counts = []
     counts.append(i)
-    counts.append(', '.join(diseases))
-    counts.append(list(j['Parent Protein'].dropna())[0])
-    counts.append(len(j['Reference ID'].unique()))
-    counts.append(len(j['Epitope'].unique()))
-    counts.append(len(j))
-    counts.append(list(j['Parent Species'].dropna())[0])
+    counts.append(list(row['source_antigen_name'].dropna())[0])
+    counts.append(', '.join(set(diseases)))
+    counts.append(len(row['reference_id'].unique()))
+    counts.append(len(row['structure_id'].unique()))
+    counts.append(len(row))
+    counts.append(list(row['source_organism_name'].dropna())[0])
 
     a_b_cell_counts.append(counts)
 
 # put counts into pandas DataFrame
-a_t_cell_counts = pd.DataFrame(a_t_cell_counts, columns=['Parent Protein ID', 'Diseases', 'Parent Protein', 'Reference Count',
-                                     'Epitope Count', 'Assay Count', 'Parent Species'])
-a_b_cell_counts = pd.DataFrame(a_b_cell_counts, columns=['Parent Protein ID', 'Diseases', 'Parent Protein', 'Reference Count',
-                                     'Epitope Count', 'Assay Count', 'Parent Species'])
+a_t_cell_counts = pd.DataFrame(a_t_cell_counts, columns=['Protein ID', 'Protein Name', 'Diseases',
+                                     'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
+a_b_cell_counts = pd.DataFrame(a_b_cell_counts, columns=['Protein ID','Protein Name', 'Diseases', 
+                                     'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
 
 # limit autoimmune antigens requiring 2 references
 a_t_cell_counts = a_t_cell_counts[a_t_cell_counts['Reference Count'] > 1]
