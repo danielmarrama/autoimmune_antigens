@@ -12,7 +12,8 @@ with open('autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
 
 # TODO:
-# - 
+# - Fix count collection for API data
+# - Add cancer API pull
 
 
 #######################################################
@@ -65,18 +66,30 @@ tcell = tcell[(tcell['host_organism_iri'] == tcell['parent_source_antigen_source
 bcell = bcell[(bcell['host_organism_iri'] == bcell['parent_source_antigen_source_org_iri']) | # OR  
               (bcell['host_organism_iri'] == bcell['r_object_source_organism_iri'])]
 
+# create a column combining epitope and related object source antigen IDs
+tcell['source_antigen_iri'] = tcell['parent_source_antigen_iri'].fillna(tcell['r_object_source_molecule_iri'])
+bcell['source_antigen_iri'] = bcell['parent_source_antigen_iri'].fillna(bcell['r_object_source_molecule_iri'])
+
+# create a column combining epitope and related object source antigen names
+tcell['source_antigen_name'] = tcell['parent_source_antigen_name'].fillna(tcell['r_object_source_molecule_name'])
+bcell['source_antigen_name'] = bcell['parent_source_antigen_name'].fillna(bcell['r_object_source_molecule_name'])
+
+# create a column combining epitope and related object source organism names
+tcell['source_organism_name'] = tcell['source_organism_name'].fillna(tcell['r_object_source_organism_name'])
+bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_object_source_organism_name'])
+
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for T cell
 a_t_cell_counts = []
-for i, j in a_t_cell_epitopes.groupby('Parent Protein ID'):
-    diseases = list(set(filter(None, j[['1st in vivo Disease State', '2nd in vivo Disease State']].to_numpy(na_value=None).flatten())))
+for i, row in tdf.groupby('source_antigen_iri'):
+    diseases = row['disease_names']
     counts = []
     counts.append(i)
-    counts.append(', '.join(diseases))
-    counts.append(list(j['Parent Protein'].dropna())[0])
-    counts.append(len(j['Reference ID'].unique()))
-    counts.append(len(j['Epitope'].unique()))
-    counts.append(len(j))
-    counts.append(list(j['Parent Species'].dropna())[0])
+    counts.append(', '.join(set(diseases)))
+    counts.append(list(row['source_antigen_name'].dropna())[0])
+    counts.append(len(row['reference_id'].unique()))
+    counts.append(len(row['structure_id'].unique()))
+    counts.append(len(row))
+    counts.append(list(row['source_organism_name'].dropna())[0])
 
     a_t_cell_counts.append(counts)
 
