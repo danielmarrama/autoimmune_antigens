@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import warnings
+warnings.filterwarnings("ignore")
+
 import io
 import requests
 import json
@@ -22,7 +25,7 @@ with open('autoimmune_diseases.json' , 'r') as f:
 
 def pull_autoimmune_data(table):
     '''
-    Extracts T cell and B cell positive assay data from the IEDB.
+    Extracts T cell and B cell positive assay data for autoimmunity from the IEDB.
     Parameter table = 'tcell' or 'bcell' to specify. 
     '''
     
@@ -78,7 +81,7 @@ tcell['source_organism_name'] = tcell['source_organism_name'].fillna(tcell['r_ob
 bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_object_source_organism_name'])
 
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for T cell
-a_t_cell_counts = []
+tcell_counts = []
 for i, row in tcell.groupby('source_antigen_iri'):
     diseases = row['disease_names']
     counts = []
@@ -90,10 +93,10 @@ for i, row in tcell.groupby('source_antigen_iri'):
     counts.append(len(row))
     counts.append(list(row['source_organism_name'].dropna())[0])
 
-    a_t_cell_counts.append(counts)
+    tcell_counts.append(counts)
 
 # get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for B cell
-a_b_cell_counts = []
+bcell_counts = []
 for i, row in bcell.groupby('source_antigen_iri'):
     diseases = row['disease_names']
     counts = []
@@ -105,17 +108,17 @@ for i, row in bcell.groupby('source_antigen_iri'):
     counts.append(len(row))
     counts.append(list(row['source_organism_name'].dropna())[0])
 
-    a_b_cell_counts.append(counts)
+    bcell_counts.append(counts)
 
 # put counts into pandas DataFrame
-a_t_cell_counts = pd.DataFrame(a_t_cell_counts, columns=['Protein ID', 'Protein Name', 'Diseases',
+tcell_counts = pd.DataFrame(tcell_counts, columns=['Protein ID', 'Protein Name', 'Diseases',
                                      'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
-a_b_cell_counts = pd.DataFrame(a_b_cell_counts, columns=['Protein ID','Protein Name', 'Diseases', 
+bcell_counts = pd.DataFrame(bcell_counts, columns=['Protein ID','Protein Name', 'Diseases', 
                                      'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
 
 # limit autoimmune antigens requiring 2 references
-a_t_cell_counts = a_t_cell_counts[a_t_cell_counts['Reference Count'] > 1]
-a_b_cell_counts = a_b_cell_counts[a_b_cell_counts['Reference Count'] > 1]
+tcell_counts = tcell_counts[tcell_counts['Reference Count'] > 1]
+bcell_counts = bcell_counts[bcell_counts['Reference Count'] > 1]
 
 print('Done.')
 
@@ -124,20 +127,20 @@ print('Writing autoimmune data...')
 # output dataframes to one file
 writer = pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter')
 
-a_t_cell_epitopes.to_excel(writer, sheet_name='T Cell Assays')
-a_b_cell_epitopes.to_excel(writer, sheet_name='B Cell Assays')
-a_t_cell_counts.to_excel(writer, sheet_name='T Cell Counts')
-a_b_cell_counts.to_excel(writer, sheet_name='B Cell Counts')
+tcell.to_excel(writer, sheet_name='T Cell Assays')
+tcell_counts.to_excel(writer, sheet_name='T Cell Counts')
+bcell.to_excel(writer, sheet_name='B Cell Assays')
+bcell_counts.to_excel(writer, sheet_name='B Cell Counts')
 
 writer.save()
 
 print('Done.')
 
-# TODO: use requests to get all autoimmune antigen sequences
+# use requests to get all autoimmune antigen sequences
 print('Getting autoimmune antigen sequences from UniProt...')
 
 with open('autoimmune_antigens.fasta', 'w') as f:
-    for i in a_t_cell_counts['Parent Protein ID'].append(a_b_cell_counts['Parent Protein ID']):
+    for i in tcell_counts['Protein ID'].append(bcell_counts['Protein ID']):
         r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
         if not r.text:
             continue
@@ -151,7 +154,10 @@ print('Done.')
 #######################################################
 
 def pull_cancer_data(table):
-    pass
+    '''
+    Extracts T cell and B cell positive assay data for cancer from the IEDB.
+    Parameter table = 'tcell' or 'bcell' to specify. 
+    '''
 
 print('Extracting cancer data...')
 
@@ -249,7 +255,7 @@ writer.save()
 
 print('Done.')
 
-# TODO: use requests to get all cancer antigen sequences
+# use requests to get all cancer antigen sequences
 print('Getting cancer antigen sequences from UniProt...')
 
 with open('cancer_antigens.fasta', 'w') as f:
