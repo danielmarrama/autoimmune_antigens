@@ -140,12 +140,13 @@ print('Done.')
 print('Getting autoimmune antigen sequences from UniProt...')
 
 with open('autoimmune_antigens.fasta', 'w') as f:
-    for i in tcell_counts['Protein ID'].append(bcell_counts['Protein ID']):
+    for idx in tcell_counts['Protein ID'].append(bcell_counts['Protein ID']):
+        i = idx.split(':')[1]
         r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
         if not r.text:
             continue
         else:
-            f.write(r.text[:-1])
+            f.write(r.text)
 
 print('Done.')
 
