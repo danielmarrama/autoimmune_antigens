@@ -159,6 +159,37 @@ def pull_cancer_data(table):
     Extracts T cell and B cell positive assay data for cancer from the IEDB.
     Parameter table = 'tcell' or 'bcell' to specify. 
     '''
+    df = pd.DataFrame()
+
+    # first get the total number of assays as first request to loop through API
+    url = 'https://query-api.iedb.org/%s_search' % table
+    params = {'order': 'structure_id',
+              'qualitative_measure': 'neq.Negative',
+              'or': '(e_related_object_type.eq.neo-epitope, immunization_description.plfts."Occurrence of cancer")'}
+    r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
+    pages = int(r.headers['Content-Range'].split('/')[-1])
+      
+    # loop through IEDB API pages using requests - read into pandas DataFrame and concat
+    for i in range(pages // 10000 + 1): # API limit is 10,000 entries
+        params['offset'] = i*10000
+
+        # request API call returning csv formatting using parameters in params
+        s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+        try:
+            df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+        except pd.errors.EmptyDataError:
+            continue
+
+    return df
+
+# read in cancer IEDB T cell and B cell assay tables
+print('Reading in cancer T cell assay data...')
+tcell = pull_cancer_data('tcell')
+print('Done.')
+
+print('Reading in cancer B cell assay data...')
+bcell = pull_cancer_data('bcell')
+print('Done.')
 
 print('Extracting cancer data...')
 

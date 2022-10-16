@@ -1,6 +1,6 @@
-T cell 
-
 IEDB Download                                                   API
+
+T cell 
 
 [('Reference', 'Assay IRI'),                                    tcell_id
 ('Reference', 'Reference IRI'),                                 reference_id
@@ -30,8 +30,7 @@ IEDB Download                                                   API
 ('MHC', 'Allele Name')]                                         mhc_allele_name
 
 
-b cell
-
+B cell
 
 [('Reference', 'Assay IRI'),                                    bcell_id
 ('Reference', 'Reference IRI'),                                 reference_id
