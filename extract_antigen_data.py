@@ -38,10 +38,10 @@ def pull_autoimmune_data(table):
                   'qualitative_measure': 'neq.Negative', # select positive assays only
                   'disease_iris': f'cs.{{{"DOID:"+doid}}}'} 
         r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
-        pages = int(r.headers['Content-Range'].split('/')[-1])
+        rows = int(r.headers['Content-Range'].split('/')[-1])
       
       # loop through IEDB API pages using requests - read into pandas DataFrame and concat
-        for i in range(pages // 10000 + 1): # API limit is 10,000 entries
+        for i in range(rows // 10000 + 1): # API limit is 10,000 entries
             params['offset'] = i*10000
 
             # request API call returning csv formatting using parameters in params
@@ -167,10 +167,10 @@ def pull_cancer_data(table):
               'qualitative_measure': 'neq.Negative',
               'or': '(e_related_object_type.eq.neo-epitope, immunization_description.plfts."Occurrence of cancer")'}
     r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
-    pages = int(r.headers['Content-Range'].split('/')[-1])
+    rows = int(r.headers['Content-Range'].split('/')[-1])
       
     # loop through IEDB API pages using requests - read into pandas DataFrame and concat
-    for i in range(pages // 10000 + 1): # API limit is 10,000 entries
+    for i in range(rows // 10000 + 1): # API limit is 10,000 entries
         params['offset'] = i*10000
 
         # request API call returning csv formatting using parameters in params
