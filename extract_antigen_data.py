@@ -80,45 +80,48 @@ bcell['source_antigen_name'] = bcell['parent_source_antigen_name'].fillna(bcell[
 tcell['source_organism_name'] = tcell['source_organism_name'].fillna(tcell['r_object_source_organism_name'])
 bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_object_source_organism_name'])
 
-# get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for T cell
-tcell_counts = []
-for i, row in tcell.groupby('source_antigen_iri'):
-    diseases = row['disease_names']
-    counts = []
-    counts.append(i)
-    counts.append(list(row['source_antigen_name'].dropna())[0])
-    counts.append(', '.join(set(diseases)))
-    counts.append(len(row['reference_id'].unique()))
-    counts.append(len(row['structure_id'].unique()))
-    counts.append(len(row))
-    counts.append(list(row['source_organism_name'].dropna())[0])
 
-    tcell_counts.append(counts)
 
-# get reference, unique epitope, and counts for reference, epitope and assay by unique antigen for B cell
-bcell_counts = []
-for i, row in bcell.groupby('source_antigen_iri'):
-    diseases = row['disease_names']
-    counts = []
-    counts.append(i)
-    counts.append(list(row['source_antigen_name'].dropna())[0])
-    counts.append(', '.join(set(diseases)))
-    counts.append(len(row['reference_id'].unique()))
-    counts.append(len(row['structure_id'].unique()))
-    counts.append(len(row))
-    counts.append(list(row['source_organism_name'].dropna())[0])
+# aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
+# epitope, assay and reference count (T cell)
+count_map = {}
+for i, row in tcell_autoimmune.groupby('source_antigen_iri'):
+    count_map[i] = []
+    count_map[i].append(list(row['source_antigen_name'].dropna())[0])
+    count_map[i].append(list(row['source_organism_name'].dropna())[0])
+    count_map[i].append(len(row['structure_id'].unique()))
+    count_map[i].append(len(row))
+    count_map[i].append(len(row['reference_id'].unique()))
+    count_map[i].append(list(row['disease_names']))
+    count_map[i].append('T cell')
 
-    bcell_counts.append(counts)
+# repeat the same for B cell and add counts if ID was already seen in T cell
+for i, row in bcell_autoimmune.groupby('source_antigen_iri'):
+    if i in count_map.keys():
+        count_map[i][2] += len(row['structure_id'].unique())
+        count_map[i][3] += len(row)
+        count_map[i][4] += len(row['reference_id'].unique())
+        count_map[i][5] += list(row['disease_names'])
+        count_map[i][6] += ' and B cell'
+    else:
+        count_map[i] = []
+        count_map[i].append(list(row['source_antigen_name'].dropna())[0])
+        count_map[i].append(list(row['source_organism_name'].dropna())[0])
+        count_map[i].append(len(row['structure_id'].unique()))
+        count_map[i].append(len(row))
+        count_map[i].append(len(row['reference_id'].unique()))
+        count_map[i].append(list(row['disease_names']))
+        count_map[i].append('B Cell')
+        
+# clean up diseases into unique names using set function
+for k, v in count_map.items():
+    count_map[k][5] = ', '.join(set(count_map[k][5]))
 
-# put counts into pandas DataFrame
-tcell_counts = pd.DataFrame(tcell_counts, columns=['Protein ID', 'Protein Name', 'Diseases',
-                                     'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
-bcell_counts = pd.DataFrame(bcell_counts, columns=['Protein ID','Protein Name', 'Diseases', 
-                                     'Reference Count', 'Epitope Count', 'Assay Count', 'Parent Species'])
-
-# limit autoimmune antigens requiring 2 references
-tcell_counts = tcell_counts[tcell_counts['Reference Count'] > 1]
-bcell_counts = bcell_counts[bcell_counts['Reference Count'] > 1]
+# put counts into pandas DataFrame, reset and rename index
+counts = pd.DataFrame.from_dict(count_map, 
+                                orient = 'index', 
+                                columns = ['Protein Name', 'Source Organism', 'Epitope Count',
+                                           'Assay Count', 'Reference Count', 'Diseases', 'Targeted By']).reset_index().rename(columns={'index': 'Protein ID'})
 
 print('Done.')
 
@@ -128,9 +131,8 @@ print('Writing autoimmune data...')
 writer = pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter')
 
 tcell.to_excel(writer, sheet_name='T Cell Assays')
-tcell_counts.to_excel(writer, sheet_name='T Cell Counts')
 bcell.to_excel(writer, sheet_name='B Cell Assays')
-bcell_counts.to_excel(writer, sheet_name='B Cell Counts')
+counts.to_excel(writer, sheet_name='Antigen Counts')
 
 writer.save()
 
