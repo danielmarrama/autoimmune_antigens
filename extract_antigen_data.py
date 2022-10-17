@@ -123,6 +123,9 @@ counts = pd.DataFrame.from_dict(count_map,
                                 columns = ['Protein Name', 'Source Organism', 'Epitope Count',
                                            'Assay Count', 'Reference Count', 'Diseases', 'Targeted By']).reset_index().rename(columns={'index': 'Protein ID'})
 
+# take only antigens that have more than 1 reference
+counts = counts[counts['Reference Count'] > 1]
+
 print('Done.')
 
 print('Writing autoimmune data...')
