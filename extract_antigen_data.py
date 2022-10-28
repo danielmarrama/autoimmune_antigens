@@ -85,7 +85,7 @@ bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_ob
 # aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
 # epitope, assay and reference count (T cell)
 count_map = {}
-for i, row in tcell_autoimmune.groupby('source_antigen_iri'):
+for i, row in tcell.groupby('source_antigen_iri'):
     count_map[i] = []
     count_map[i].append(list(row['source_antigen_name'].dropna())[0])
     count_map[i].append(list(row['source_organism_name'].dropna())[0])
@@ -96,7 +96,7 @@ for i, row in tcell_autoimmune.groupby('source_antigen_iri'):
     count_map[i].append('T cell')
 
 # repeat the same for B cell and add counts if ID was already seen in T cell
-for i, row in bcell_autoimmune.groupby('source_antigen_iri'):
+for i, row in bcell.groupby('source_antigen_iri'):
     if i in count_map.keys():
         count_map[i][2] += len(row['structure_id'].unique())
         count_map[i][3] += len(row)
@@ -118,10 +118,13 @@ for k, v in count_map.items():
     count_map[k][5] = ', '.join(set(count_map[k][5]))
 
 # put counts into pandas DataFrame, reset and rename index
+columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
+           'Reference Count', 'Diseases', 'Targeted By']
 counts = pd.DataFrame.from_dict(count_map, 
                                 orient = 'index', 
-                                columns = ['Protein Name', 'Source Organism', 'Epitope Count',
-                                           'Assay Count', 'Reference Count', 'Diseases', 'Targeted By']).reset_index().rename(columns={'index': 'Protein ID'})
+                                columns = columns
+                                ).reset_index().rename(
+                                columns={'index': 'Protein ID'})
 
 # take only antigens that have more than 1 reference
 counts = counts[counts['Reference Count'] > 1]
@@ -133,9 +136,9 @@ print('Writing autoimmune data...')
 # output dataframes to one file
 writer = pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter')
 
-tcell.to_excel(writer, sheet_name='T Cell Assays')
-bcell.to_excel(writer, sheet_name='B Cell Assays')
-counts.to_excel(writer, sheet_name='Antigen Counts')
+tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
+bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
+counts.to_excel(writer, sheet_name='Antigen Counts', index=False)
 
 writer.save()
 
@@ -145,7 +148,8 @@ print('Done.')
 print('Getting autoimmune antigen sequences from UniProt...')
 
 with open('autoimmune_antigens.fasta', 'w') as f:
-    for idx in tcell_counts['Protein ID'].append(bcell_counts['Protein ID']):
+    for idx in counts['Protein ID']:
+        print(idx)
         i = idx.split(':')[1]
         r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
         if not r.text:
