@@ -11,81 +11,41 @@ import pandas as pd
 
 from Bio import SeqIO
 
-with open('autoimmune_diseases.json' , 'r') as f:
-    diseases = json.load(f)
-
 # TODO:
-# - Add cancer API pull
+# - Get all human protein data and remove autoimmune/cancer antigens
 
 
-#######################################################
-################### AUTOIMMUNE DATA ###################
-#######################################################
+def pull_uniprot_antigens(counts, antigen_type):
+  # use requests to get all autoimmune antigen sequences
+  with open('%s_antigens.fasta' % antigen_type, 'w') as f:
+      for idx in counts['Protein ID']:
+          print(idx)
+          i = idx.split(':')[1]
+          r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
+          if not r.text:
+              continue
+          else:
+              f.write(r.text)
+  return 0
 
+def write_data_to_file(tcell, bcell, counts, antigen_type):
+  # output dataframes to one file
+  writer = pd.ExcelWriter('%s_data.xlsx' % antigen_type, engine='xlsxwriter')
 
-def pull_autoimmune_data(table):
-    '''
-    Extracts T cell and B cell positive assay data for autoimmunity from the IEDB.
-    Parameter table = 'tcell' or 'bcell' to specify. 
-    '''
-    
-    df = pd.DataFrame()
-    for doid in diseases.keys(): 
+  tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
+  bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
+  counts.to_excel(writer, sheet_name='Antigen Counts', index=False)
 
-        # first get the total number of assays as first request to loop through API
-        url = 'https://query-api.iedb.org/%s_search' % table
-        params = {'order': 'structure_id',
-                  'qualitative_measure': 'neq.Negative', # select positive assays only
-                  'disease_iris': f'cs.{{{"DOID:"+doid}}}'} 
-        r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
-        rows = int(r.headers['Content-Range'].split('/')[-1])
-      
-      # loop through IEDB API pages using requests - read into pandas DataFrame and concat
-        for i in range(rows // 10000 + 1): # API limit is 10,000 entries
-            params['offset'] = i*10000
+  writer.save()
 
-            # request API call returning csv formatting using parameters in params
-            s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-            try:
-                df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
-            except pd.errors.EmptyDataError:
-                continue
+  return 0 
 
-    return df
+def get_counts(tcell, bcell):
 
-# read in autoimmune IEDB T cell and B cell assay tables
-print('Reading in autoimmune T cell assay data...')
-tcell = pull_autoimmune_data('tcell')
-print('Done.')
-
-print('Reading in autoimmune B cell assay data...')
-bcell = pull_autoimmune_data('bcell')
-print('Done.')
-
-# select epitopes where host and source organism are identical
-tcell = tcell[(tcell['host_organism_iri'] == tcell['parent_source_antigen_source_org_iri']) | # OR
-              (tcell['host_organism_iri'] == tcell['r_object_source_organism_iri'])]
-bcell = bcell[(bcell['host_organism_iri'] == bcell['parent_source_antigen_source_org_iri']) | # OR  
-              (bcell['host_organism_iri'] == bcell['r_object_source_organism_iri'])]
-
-# create a column combining epitope and related object source antigen IDs
-tcell['source_antigen_iri'] = tcell['parent_source_antigen_iri'].fillna(tcell['r_object_source_molecule_iri'])
-bcell['source_antigen_iri'] = bcell['parent_source_antigen_iri'].fillna(bcell['r_object_source_molecule_iri'])
-
-# create a column combining epitope and related object source antigen names
-tcell['source_antigen_name'] = tcell['parent_source_antigen_name'].fillna(tcell['r_object_source_molecule_name'])
-bcell['source_antigen_name'] = bcell['parent_source_antigen_name'].fillna(bcell['r_object_source_molecule_name'])
-
-# create a column combining epitope and related object source organism names
-tcell['source_organism_name'] = tcell['source_organism_name'].fillna(tcell['r_object_source_organism_name'])
-bcell['source_organism_name'] = bcell['source_organism_name'].fillna(bcell['r_object_source_organism_name'])
-
-
-
-# aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
-# epitope, assay and reference count (T cell)
-count_map = {}
-for i, row in tcell.groupby('source_antigen_iri'):
+  # aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
+  # epitope, assay and reference count (T cell)
+  count_map = {}
+  for i, row in tcell.groupby('source_antigen_iri'):
     count_map[i] = []
     count_map[i].append(list(row['source_antigen_name'].dropna())[0])
     count_map[i].append(list(row['source_organism_name'].dropna())[0])
@@ -95,230 +55,154 @@ for i, row in tcell.groupby('source_antigen_iri'):
     count_map[i].append(list(row['disease_names']))
     count_map[i].append('T cell')
 
-# repeat the same for B cell and add counts if ID was already seen in T cell
-for i, row in bcell.groupby('source_antigen_iri'):
+  # repeat the same for B cell and add counts if ID was already seen in T cell
+  for i, row in bcell.groupby('source_antigen_iri'):
     if i in count_map.keys():
-        count_map[i][2] += len(row['structure_id'].unique())
-        count_map[i][3] += len(row)
-        count_map[i][4] += len(row['reference_id'].unique())
-        count_map[i][5] += list(row['disease_names'])
-        count_map[i][6] += ' and B cell'
+      count_map[i][2] += len(row['structure_id'].unique())
+      count_map[i][3] += len(row)
+      count_map[i][4] += len(row['reference_id'].unique())
+      count_map[i][5] += list(row['disease_names'])
+      count_map[i][6] += ' and B cell'
     else:
-        count_map[i] = []
-        count_map[i].append(list(row['source_antigen_name'].dropna())[0])
-        count_map[i].append(list(row['source_organism_name'].dropna())[0])
-        count_map[i].append(len(row['structure_id'].unique()))
-        count_map[i].append(len(row))
-        count_map[i].append(len(row['reference_id'].unique()))
-        count_map[i].append(list(row['disease_names']))
-        count_map[i].append('B Cell')
-        
-# clean up diseases into unique names using set function
-for k, v in count_map.items():
+      count_map[i] = []
+      count_map[i].append(list(row['source_antigen_name'].dropna())[0])
+      count_map[i].append(list(row['source_organism_name'].dropna())[0])
+      count_map[i].append(len(row['structure_id'].unique()))
+      count_map[i].append(len(row))
+      count_map[i].append(len(row['reference_id'].unique()))
+      count_map[i].append(list(row['disease_names']))
+      count_map[i].append('B Cell')
+          
+  # clean up diseases into unique names using set function
+  for k, v in count_map.items():
     count_map[k][5] = ', '.join(set(count_map[k][5]))
 
-# put counts into pandas DataFrame, reset and rename index
-columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
-           'Reference Count', 'Diseases', 'Targeted By']
-counts = pd.DataFrame.from_dict(count_map, 
-                                orient = 'index', 
-                                columns = columns
-                                ).reset_index().rename(
-                                columns={'index': 'Protein ID'})
+  # put counts into pandas DataFrame, reset and rename index
+  columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
+            'Reference Count', 'Diseases', 'Targeted By']
+  counts = pd.DataFrame.from_dict(count_map, 
+                                  orient = 'index', 
+                                  columns = columns
+                                  ).reset_index().rename(
+                                  columns={'index': 'Protein ID'})
 
-# take only antigens that have more than 1 reference
-counts = counts[counts['Reference Count'] > 1]
+  return counts
 
-print('Done.')
+def iterate_api(url, params):
+  """
+  IEDB API only allows 10,000 entries per request. We use this function to loop through
+  all requests using our URL and parameters until we receive no more data.
+  """
+  df = pd.DataFrame()
+  while(True):
+    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+    try:
+      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+      params['offset'] += 10000
+    except pd.errors.EmptyDataError:
+      break
+  
+  return df
 
-print('Writing autoimmune data...')
-
-# output dataframes to one file
-writer = pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter')
-
-tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
-bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
-counts.to_excel(writer, sheet_name='Antigen Counts', index=False)
-
-writer.save()
-
-print('Done.')
-
-# use requests to get all autoimmune antigen sequences
-print('Getting autoimmune antigen sequences from UniProt...')
-
-with open('autoimmune_antigens.fasta', 'w') as f:
-    for idx in counts['Protein ID']:
-        print(idx)
-        i = idx.split(':')[1]
-        r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
-        if not r.text:
-            continue
-        else:
-            f.write(r.text)
-
-print('Done.')
-
-#######################################################
-##################### CANCER DATA #####################
-#######################################################
-
-def pull_cancer_data(table):
-    '''
-    Extracts T cell and B cell positive assay data for cancer from the IEDB.
-    Parameter table = 'tcell' or 'bcell' to specify. 
-    '''
+def pull_iedb_data(table, antigen_type):
+  '''
+  Extracts T cell and B cell positive assay data from the IEDB.
+  antigen_type = 'autoimmune' or 'cancer'
+  Parameter table = 'tcell' or 'bcell' to specify. 
+  '''
+  if antigen_type == 'autoimmune':
     df = pd.DataFrame()
+    for doid in diseases.keys(): 
+
+      # first get the total number of assays as first request to loop through API
+      url = 'https://query-api.iedb.org/%s_search' % table
+      params = {'order': 'structure_id',
+                'qualitative_measure': 'neq.Negative', # select positive assays only
+                'disease_iris': f'cs.{{{"DOID:"+doid}}}',
+                'offset': 0}
+      
+      df = pd.concat([df, iterate_api(url, params)])
+    
+    # select epitopes where host and source organism are identical
+    df = df[(df['host_organism_iri'] == df['parent_source_antigen_source_org_iri']) | # OR
+            (df['host_organism_iri'] == df['r_object_source_organism_iri'])]
+  
+  elif antigen_type == 'cancer':
 
     # first get the total number of assays as first request to loop through API
     url = 'https://query-api.iedb.org/%s_search' % table
     params = {'order': 'structure_id',
               'qualitative_measure': 'neq.Negative',
-              'or': '(e_related_object_type.eq.neo-epitope, immunization_description.plfts."Occurrence of cancer")'}
-    r = requests.get(url, params=params, headers={'Prefer': 'count=exact'})
-    rows = int(r.headers['Content-Range'].split('/')[-1])
+              'or': '(e_related_object_type.eq.neo-epitope, immunization_description.plfts."Occurrence of cancer")',
+              'offset': 10000}
       
-    # loop through IEDB API pages using requests - read into pandas DataFrame and concat
-    for i in range(rows // 10000 + 1): # API limit is 10,000 entries
-        params['offset'] = i*10000
+    df = iterate_api(url, params)
+  
+  else:
+    raise(ValueError('Antigen type not specified. Antigen type requested : %s' % antigen_type))
+  
+  # create a column combining epitope and related object source antigen IDs
+  df['source_antigen_iri'] = df['parent_source_antigen_iri'].fillna(df['r_object_source_molecule_iri'])
+  # create a column combining epitope and related object source antigen names
+  df['source_antigen_name'] = df['parent_source_antigen_name'].fillna(df['r_object_source_molecule_name'])
+  # create a column combining epitope and related object source organism names
+  df['source_organism_name'] = df['source_organism_name'].fillna(df['r_object_source_organism_name'])
+  
+  return df
 
-        # request API call returning csv formatting using parameters in params
-        s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-        try:
-            df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
-        except pd.errors.EmptyDataError:
-            continue
+if __name__ == '__main__':
+  print('Extracting autoimmune data...')
 
-    return df
+  with open('autoimmune_diseases.json' , 'r') as f:
+      diseases = json.load(f)
 
-# read in cancer IEDB T cell and B cell assay tables
-print('Reading in cancer T cell assay data...')
-tcell = pull_cancer_data('tcell')
-print('Done.')
+  # read in autoimmune IEDB T cell and B cell assay tables
+  print('Reading in autoimmune T cell assay data...')
+  tcell = pull_iedb_data('tcell', 'autoimmune')
+  print('Done.')
 
-print('Reading in cancer B cell assay data...')
-bcell = pull_cancer_data('bcell')
-print('Done.')
+  print('Reading in autoimmune B cell assay data...')
+  bcell = pull_iedb_data('bcell', 'autoimmune')
+  print('Done.')
+  
+  # count antigens and reduce antigens to those with more than 1 reference
+  counts = get_counts(tcell, bcell)
+  counts = counts[counts['Reference Count'] > 1]
 
-print('Extracting cancer data...')
+  print('Writing autoimmune data...')
+  write_data_to_file(tcell, bcell, counts, 'autoimmune')
+  print('Done.')
 
-# select cancer epitopes by neo-epitope marking OR by occurrence of cancer label
-c_t_cell_epitopes = t_cell_df[(t_cell_df['Related Object Epitope Relationship'] == 'neo-epitope') |
-                              (t_cell_df['1st in vivo Process Type'] == 'Occurrence of cancer') |
-                              (t_cell_df['2nd in vivo Process Type'] == 'Occurrence of cancer')]
+  print('Getting autoimmune antigen sequences from UniProt...')
+  pull_uniprot_antigens(counts, 'autoimmune')
+  print('Done')
 
-c_b_cell_epitopes = b_cell_df[(b_cell_df['Related Object Epitope Relationship'] == 'neo-epitope') |
-                              (b_cell_df['1st in vivo Process Type'] == 'Occurrence of cancer') |
-                              (b_cell_df['2nd in vivo Process Type'] == 'Occurrence of cancer')]
+  print('Extracting cancer data...')
+  print('Reading in cancer T cell assay data...')
+  tcell = pull_iedb_data('tcell', 'cancer')
+  print('Done.')
 
-# fill related object antigen name with parent protein THEN by antigen name from the epitope table
-# this is because the parent protein has more consistent naming
-c_t_cell_epitopes['Related Object Parent Protein'].fillna(c_t_cell_epitopes['Parent Protein'], inplace=True)
-c_b_cell_epitopes['Related Object Parent Protein'].fillna(c_b_cell_epitopes['Parent Protein'], inplace=True)
-c_t_cell_epitopes['Related Object Parent Organism'].fillna(c_t_cell_epitopes['Parent Species'], inplace=True)
-c_b_cell_epitopes['Related Object Parent Organism'].fillna(c_b_cell_epitopes['Parent Species'], inplace=True)
-c_t_cell_epitopes['Related Object Parent Protein ID'].fillna(c_t_cell_epitopes['Parent Protein ID'], inplace=True)
-c_b_cell_epitopes['Related Object Parent Protein ID'].fillna(c_b_cell_epitopes['Parent Protein ID'], inplace=True)
-c_t_cell_epitopes['Related Object Parent Organism ID'].fillna(c_t_cell_epitopes['Parent Species ID'], inplace=True)
-c_b_cell_epitopes['Related Object Parent Organism ID'].fillna(c_b_cell_epitopes['Parent Species ID'], inplace=True)
+  print('Reading in cancer B cell assay data...')
+  bcell = pull_iedb_data('bcell', 'cancer')
+  print('Done.')
 
-# drop columns used above to fill in nulls
-c_t_cell_epitopes.drop(columns=['Parent Protein', 'Parent Species', 'Parent Protein ID', 'Parent Species ID'], inplace=True)
-c_b_cell_epitopes.drop(columns=['Parent Protein', 'Parent Species', 'Parent Protein ID', 'Parent Species ID'], inplace=True)
+  counts = get_counts(tcell, bcell)
 
-# get reference, unique epitope, and assay counts by unique antigen for T cell
-c_t_cell_counts = []
-for i, j in c_t_cell_epitopes.groupby('Related Object Parent Protein ID'):
-    diseases = list(set(filter(None, j[['1st in vivo Disease State', '2nd in vivo Disease State']].to_numpy(na_value=None).flatten())))
-    counts = []
-    counts.append(i)
-    counts.append(', '.join(diseases))
-    counts.append(list(j['Related Object Parent Protein'].dropna())[0])
-    counts.append(len(j['Reference ID'].unique()))
-    counts.append(len(j['Epitope'].unique()))
-    counts.append(len(j))
-    counts.append(list(j['Related Object Parent Organism'].dropna())[0])
+  print('Writing cancer data...')
+  write_data_to_file(tcell, bcell, counts, 'cancer')
+  print('Done.')
 
-    if 'virus' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Virus')
-    elif 'sapiens' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Animal')
-    elif 'musculus' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Animal')
-    elif 'boydii' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Bacteria')
-    else:
-      counts.append('Unknown')
+  print('Getting cancer antigen sequences from UniProt...')
+  pull_uniprot_antigens(counts, 'cancer')
+  print('Done.')
 
-    c_t_cell_counts.append(counts)
 
-# get reference, unique epitope, and assay counts by unique antigen for B cell
-c_b_cell_counts = []
-for i, j in c_b_cell_epitopes.groupby('Related Object Parent Protein ID'):
-    diseases = list(set(filter(None, j[['1st in vivo Disease State', '2nd in vivo Disease State']].to_numpy(na_value=None).flatten())))
-    counts = []
-    counts.append(i)
-    counts.append(', '.join(diseases))
-    counts.append(list(j['Related Object Parent Protein'].dropna())[0])
-    counts.append(len(j['Reference ID'].unique()))
-    counts.append(len(j['Epitope'].unique()))
-    counts.append(len(j))
-    counts.append(list(j['Related Object Parent Organism'].dropna())[0])
-
-    if 'virus' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Virus')
-    elif 'sapiens' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Animal')
-    elif 'musculus' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Animal')
-    elif 'communis' in list(j['Related Object Parent Organism'].dropna())[0]:
-      counts.append('Plant')
-    else:
-      counts.append('Bacteria')
-
-    c_b_cell_counts.append(counts)
-
-# put counts into Pandas dataframe
-c_t_cell_counts = pd.DataFrame(c_t_cell_counts, columns=['Parent Protein ID', 'Diseases', 'Antigen', 'References', 'Epitopes', 'Assays', 'Source Organism', 'Parent'])
-c_b_cell_counts = pd.DataFrame(c_b_cell_counts, columns=['Parent Protein ID', 'Diseases', 'Antigen', 'References', 'Epitopes', 'Assays', 'Source Organism', 'Parent'])
-
-print('Writing cancer data...')
-
-# output dataframes to one file
-writer = pd.ExcelWriter('cancer_data.xlsx', engine='xlsxwriter')
-
-c_t_cell_epitopes.to_excel(writer, sheet_name='T Cell Epitopes')
-c_t_cell_counts.to_excel(writer, sheet_name='T Cell Antigen Counts')
-c_b_cell_epitopes.to_excel(writer, sheet_name='B Cell Epitopes')
-c_b_cell_counts.to_excel(writer, sheet_name='B Cell Antigen Counts')
-
-writer.save()
-
-print('Done.')
-
-# use requests to get all cancer antigen sequences
-print('Getting cancer antigen sequences from UniProt...')
-
-with open('cancer_antigens.fasta', 'w') as f:
-    for i in c_t_cell_counts['Parent Protein ID'].append(c_b_cell_counts['Parent Protein ID']):
-        r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
-        if not r.text:
-            continue
-        else:
-            f.write(r.text[:-1])
-
-print('Done.')
-
-###############################################################
-##################### NORMAL PROTEIN DATA #####################
-###############################################################
-
-# get human proteome
-r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
-with open('9606.fasta', 'wb') as f:
+  # get human proteome
+  r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
+  with open('9606.fasta', 'wb') as f:
     f.write(gzip.open(r.raw, 'rb').read())
 
-# read in human proteome with Biopython and remove autoimmune and cancer antigens
-human_protein_ids = []
-for record in list(SeqIO.parse('9606.fasta', 'fasta')):
+  # read in human proteome with Biopython and remove autoimmune and cancer antigens
+  human_protein_ids = []
+  for record in list(SeqIO.parse('9606.fasta', 'fasta')):
     human_protein_ids.append(record.id.split('|')[1])
