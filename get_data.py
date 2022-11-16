@@ -4,6 +4,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import io
+import re
 import requests
 import json
 import gzip
@@ -41,6 +42,12 @@ def write_data_to_file(tcell, bcell, counts, antigen_type):
   return 0 
 
 def get_counts(tcell, bcell):
+  '''
+  Concatenate all T cell and B cell assay data to get antigens and
+  their counts of epitopes, assays, and references.
+  '''
+  def parse_diseases(x):
+    return ', '.join(re.findall('{"(.*?)"}', x))
 
   # aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
   # epitope, assay and reference count (T cell)
@@ -86,6 +93,8 @@ def get_counts(tcell, bcell):
                                   columns = columns
                                   ).reset_index().rename(
                                   columns={'index': 'Protein ID'})
+
+  counts['Diseases'] = counts['Diseases'].apply(parse_diseases)
 
   return counts
 
