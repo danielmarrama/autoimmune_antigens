@@ -1,5 +1,6 @@
 __pycache__/
 blast/
 data/
+9606.fasta
 autoimmune_antigens.fasta
 autoimmune_data.xlsx

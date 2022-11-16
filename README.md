@@ -1,6 +1,6 @@
 # Autoimmune Antigen Features and Classification
 
-Feature extraction and prediction of autoimmune antigens.
+**Start here:** [get_data.py](get_data.py)
 
 ### GOALS
 1. Extract and validate autoimmune antigen data from the IEDB. **DONE**
