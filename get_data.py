@@ -16,10 +16,10 @@ from Bio import SeqIO
 # - Get all human protein data and remove autoimmune/cancer antigens
 
 
-def pull_uniprot_antigens(counts, antigen_type):
+def pull_uniprot_antigens(antigens, antigen_type):
   # use requests to get all autoimmune antigen sequences
   with open('%s_antigens.fasta' % antigen_type, 'w') as f:
-    for idx in counts['Protein ID']:
+    for idx in antigens['Protein ID']:
       print(idx)
       i = idx.split(':')[1]
       r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
@@ -29,19 +29,19 @@ def pull_uniprot_antigens(counts, antigen_type):
         f.write(r.text)
   return 0
 
-def write_data_to_file(tcell, bcell, counts, antigen_type):
+def write_data_to_file(tcell, bcell, antigens, antigen_type):
   # output dataframes to one file
   writer = pd.ExcelWriter('%s_data.xlsx' % antigen_type, engine='xlsxwriter')
 
   tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
   bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
-  counts.to_excel(writer, sheet_name='Antigen Counts', index=False)
+  antigens.to_excel(writer, sheet_name='Antigens', index=False)
 
   writer.save()
 
   return 0 
 
-def get_counts(tcell, bcell):
+def get_antigens(tcell, bcell):
   '''
   Concatenate all T cell and B cell assay data to get antigens and
   their counts of epitopes, assays, and references.
@@ -51,52 +51,51 @@ def get_counts(tcell, bcell):
 
   # aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
   # epitope, assay and reference count (T cell)
-  count_map = {}
+  antigen_map = {}
   for i, row in tcell.groupby('source_antigen_iri'):
-    count_map[i] = []
-    print(i, list(row['source_antigen_name'].dropna()))
-    count_map[i].append(list(row['source_antigen_name'].dropna())[0])
-    count_map[i].append(list(row['source_organism_name'].dropna())[0])
-    count_map[i].append(len(row['structure_id'].unique()))
-    count_map[i].append(len(row))
-    count_map[i].append(len(row['reference_id'].unique()))
-    count_map[i].append(list(row['disease_names']))
-    count_map[i].append('T cell')
+    antigen_map[i] = []
+    antigen_map[i].append(list(row['source_antigen_name'].dropna())[0])
+    antigen_map[i].append(list(row['source_organism_name'].dropna())[0])
+    antigen_map[i].append(len(row['structure_id'].unique()))
+    antigen_map[i].append(len(row))
+    antigen_map[i].append(len(row['reference_id'].unique()))
+    antigen_map[i].append(list(row['disease_names']))
+    antigen_map[i].append('T cell')
 
   # repeat the same for B cell and add counts if ID was already seen in T cell
   for i, row in bcell.groupby('source_antigen_iri'):
-    if i in count_map.keys():
-      count_map[i][2] += len(row['structure_id'].unique())
-      count_map[i][3] += len(row)
-      count_map[i][4] += len(row['reference_id'].unique())
-      count_map[i][5] += list(row['disease_names'])
-      count_map[i][6] += ' and B cell'
+    if i in antigen_map.keys():
+      antigen_map[i][2] += len(row['structure_id'].unique())
+      antigen_map[i][3] += len(row)
+      antigen_map[i][4] += len(row['reference_id'].unique())
+      antigen_map[i][5] += list(row['disease_names'])
+      antigen_map[i][6] += ' and B cell'
     else:
-      count_map[i] = []
-      count_map[i].append(list(row['source_antigen_name'].dropna())[0])
-      count_map[i].append(list(row['source_organism_name'].dropna())[0])
-      count_map[i].append(len(row['structure_id'].unique()))
-      count_map[i].append(len(row))
-      count_map[i].append(len(row['reference_id'].unique()))
-      count_map[i].append(list(row['disease_names']))
-      count_map[i].append('B Cell')
+      antigen_map[i] = []
+      antigen_map[i].append(list(row['source_antigen_name'].dropna())[0])
+      antigen_map[i].append(list(row['source_organism_name'].dropna())[0])
+      antigen_map[i].append(len(row['structure_id'].unique()))
+      antigen_map[i].append(len(row))
+      antigen_map[i].append(len(row['reference_id'].unique()))
+      antigen_map[i].append(list(row['disease_names']))
+      antigen_map[i].append('B Cell')
           
   # clean up diseases into unique names using set function
-  for k, v in count_map.items():
-    count_map[k][5] = ', '.join(set(count_map[k][5]))
+  for k, v in antigen_map.items():
+    antigen_map[k][5] = ', '.join(set(antigen_map[k][5]))
 
-  # put counts into pandas DataFrame, reset and rename index
-  columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
-            'Reference Count', 'Diseases', 'Targeted By']
-  counts = pd.DataFrame.from_dict(count_map, 
-                                  orient = 'index', 
-                                  columns = columns
-                                  ).reset_index().rename(
-                                  columns={'index': 'Protein ID'})
+  # put antigens into pandas DataFrame, reset and rename index
+  antigens = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
+              'Reference Count', 'Diseases', 'Targeted By']
+  antigens = pd.DataFrame.from_dict(antigen_map, 
+                                    orient = 'index', 
+                                    columns = columns
+                                    ).reset_index().rename(
+                                    columns={'index': 'Protein ID'})
 
-  counts['Diseases'] = counts['Diseases'].apply(parse_diseases)
+  antigens['Diseases'] = antigens['Diseases'].apply(parse_diseases)
 
-  return counts
+  return antigens
 
 def iterate_api(url, params):
   """
@@ -196,15 +195,15 @@ if __name__ == '__main__':
   print('Done.')
   
   # count antigens and reduce antigens to those with more than 1 reference
-  counts = get_counts(tcell, bcell)
-  counts = counts[counts['Reference Count'] > 1]
+  antigens = get_antigens(tcell, bcell)
+  antigens = antigens[antigens['Reference Count'] > 1]
 
   print('Writing autoimmune data...')
-  write_data_to_file(tcell, bcell, counts, 'autoimmune')
+  write_data_to_file(tcell, bcell, antigens, 'autoimmune')
   print('Done.')
 
   print('Getting autoimmune antigen sequences from UniProt...')
-  pull_uniprot_antigens(counts, 'autoimmune')
+  pull_uniprot_antigens(antigens, 'autoimmune')
   print('Done')
 
   print('Getting human proteome from UniProt...')
