@@ -4,3 +4,4 @@ data/
 9606.fasta
 autoimmune_antigens.fasta
 autoimmune_data.xlsx
+non_autoimmune_proteins.fasta

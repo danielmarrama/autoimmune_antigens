@@ -18,14 +18,14 @@ from Bio import SeqIO
 def pull_uniprot_antigens(counts, antigen_type):
   # use requests to get all autoimmune antigen sequences
   with open('%s_antigens.fasta' % antigen_type, 'w') as f:
-      for idx in counts['Protein ID']:
-          print(idx)
-          i = idx.split(':')[1]
-          r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
-          if not r.text:
-              continue
-          else:
-              f.write(r.text)
+    for idx in counts['Protein ID']:
+      print(idx)
+      i = idx.split(':')[1]
+      r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
+      if not r.text:
+        continue
+      else:
+        f.write(r.text)
   return 0
 
 def write_data_to_file(tcell, bcell, counts, antigen_type):
@@ -151,6 +151,26 @@ def pull_iedb_data(table, antigen_type):
   
   return df
 
+
+def get_human_proteome():
+  r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
+  with open('9606.fasta', 'wb') as f:
+    f.write(gzip.open(r.raw, 'rb').read())
+
+def remove_ai_proteins():
+  autoimmune_ids = []
+  for record in list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta')):
+    autoimmune_ids.append(record.id.split('|')[1])
+
+  records = []
+  with open('non_autoimmune_proteins.fasta', 'w') as f:
+    for record in SeqIO.parse('9606.fasta', 'fasta'):
+      if record.id.split('|')[1] in autoimmune_ids:
+        continue
+      else:
+        records.append(record)
+    SeqIO.write(records, f, 'fasta')
+
 if __name__ == '__main__':
   print('Extracting autoimmune data...')
 
@@ -178,32 +198,10 @@ if __name__ == '__main__':
   pull_uniprot_antigens(counts, 'autoimmune')
   print('Done')
 
-  # print('Extracting cancer data...')
-  # print('Reading in cancer T cell assay data...')
-  # tcell = pull_iedb_data('tcell', 'cancer')
-  # print('Done.')
+  print('Getting human proteome from UniProt...')
+  get_human_proteome()
+  print('Done.')
 
-  # print('Reading in cancer B cell assay data...')
-  # bcell = pull_iedb_data('bcell', 'cancer')
-  # print('Done.')
-
-  # counts = get_counts(tcell, bcell)
-
-  # print('Writing cancer data...')
-  # write_data_to_file(tcell, bcell, counts, 'cancer')
-  # print('Done.')
-
-  # print('Getting cancer antigen sequences from UniProt...')
-  # pull_uniprot_antigens(counts, 'cancer')
-  # print('Done.')
-
-
-  # get human proteome
-  r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
-  with open('9606.fasta', 'wb') as f:
-    f.write(gzip.open(r.raw, 'rb').read())
-
-  # read in human proteome with Biopython and remove autoimmune and cancer antigens
-  human_protein_ids = []
-  for record in list(SeqIO.parse('9606.fasta', 'fasta')):
-    human_protein_ids.append(record.id.split('|')[1])
+  print('Removing autoimmune antigens from human proteome...')
+  remove_ai_proteins()
+  print('Done')
