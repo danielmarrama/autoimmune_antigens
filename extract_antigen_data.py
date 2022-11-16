@@ -152,53 +152,50 @@ def pull_iedb_data(table, antigen_type):
   return df
 
 if __name__ == '__main__':
-  # print('Extracting autoimmune data...')
+  print('Extracting autoimmune data...')
 
-  # with open('autoimmune_diseases.json' , 'r') as f:
-  #     diseases = json.load(f)
+  with open('autoimmune_diseases.json' , 'r') as f:
+      diseases = json.load(f)
 
-  # # read in autoimmune IEDB T cell and B cell assay tables
-  # print('Reading in autoimmune T cell assay data...')
-  # tcell = pull_iedb_data('tcell', 'autoimmune')
-  # print('Done.')
+  # read in autoimmune IEDB T cell and B cell assay tables
+  print('Reading in autoimmune T cell assay data...')
+  tcell = pull_iedb_data('tcell', 'autoimmune')
+  print('Done.')
 
-  # print('Reading in autoimmune B cell assay data...')
-  # bcell = pull_iedb_data('bcell', 'autoimmune')
-  # print('Done.')
+  print('Reading in autoimmune B cell assay data...')
+  bcell = pull_iedb_data('bcell', 'autoimmune')
+  print('Done.')
   
-  # # count antigens and reduce antigens to those with more than 1 reference
-  # counts = get_counts(tcell, bcell)
-  # counts = counts[counts['Reference Count'] > 1]
+  # count antigens and reduce antigens to those with more than 1 reference
+  counts = get_counts(tcell, bcell)
+  counts = counts[counts['Reference Count'] > 1]
 
-  # print('Writing autoimmune data...')
-  # write_data_to_file(tcell, bcell, counts, 'autoimmune')
+  print('Writing autoimmune data...')
+  write_data_to_file(tcell, bcell, counts, 'autoimmune')
+  print('Done.')
+
+  print('Getting autoimmune antigen sequences from UniProt...')
+  pull_uniprot_antigens(counts, 'autoimmune')
+  print('Done')
+
+  # print('Extracting cancer data...')
+  # print('Reading in cancer T cell assay data...')
+  # tcell = pull_iedb_data('tcell', 'cancer')
   # print('Done.')
 
-  # print('Getting autoimmune antigen sequences from UniProt...')
-  # pull_uniprot_antigens(counts, 'autoimmune')
-  # print('Done')
-
-  print('Extracting cancer data...')
-  print('Reading in cancer T cell assay data...')
-  # tcell = pull_iedb_data('tcell', 'cancer')
-  print('Done.')
-
-  print('Reading in cancer B cell assay data...')
+  # print('Reading in cancer B cell assay data...')
   # bcell = pull_iedb_data('bcell', 'cancer')
-  print('Done.')
+  # print('Done.')
 
-  tcell = pd.read_csv('tcell.csv')
-  bcell = pd.read_csv('bcell.csv')
+  # counts = get_counts(tcell, bcell)
 
-  counts = get_counts(tcell, bcell)
+  # print('Writing cancer data...')
+  # write_data_to_file(tcell, bcell, counts, 'cancer')
+  # print('Done.')
 
-  print('Writing cancer data...')
-  write_data_to_file(tcell, bcell, counts, 'cancer')
-  print('Done.')
-
-  print('Getting cancer antigen sequences from UniProt...')
-  pull_uniprot_antigens(counts, 'cancer')
-  print('Done.')
+  # print('Getting cancer antigen sequences from UniProt...')
+  # pull_uniprot_antigens(counts, 'cancer')
+  # print('Done.')
 
 
   # get human proteome
