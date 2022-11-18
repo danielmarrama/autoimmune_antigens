@@ -63,7 +63,7 @@ def create_evalue_matrix(antigens):
     matrix_map[antigen1_id] = []
 
     # read in each antigen BLAST results 
-    df = pd.read_csv('../blast_results/%s_BLAST_results.csv' % antigen1_id, skiprows=5, sep='\t', names=columns).iloc[:-1, :]
+    df = pd.read_csv('blast_results/%s_BLAST_results.csv' % antigen1_id, skiprows=5, sep='\t', names=columns).iloc[:-1, :]
     
     # this creates a dict from two columns, the matched antigen and it's e-value
     id_to_evalue = dict(zip(df['subject'].str.split('|')[1], df['evalue']))
@@ -86,10 +86,6 @@ if __name__ == '__main__':
 
   os.mkdir('blast_results')
   antigens = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
-
-  autoimmune_ids = []
-  for record in antigens:
-    autoimmune_ids.append(record.id.split('|')[1])
 
   for antigen in antigens:
     antigen_id = antigen.id.split('|')[1]
