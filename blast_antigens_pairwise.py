@@ -2,6 +2,8 @@
 
 import os, glob
 
+import pandas as pd
+
 from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastpCommandline
 
@@ -74,6 +76,10 @@ def create_evalue_matrix(antigens):
           matrix_map[antigen1_id].append(id_to_evalue[antigen2_id])
         except KeyError:
           matrix_map[antigen1_id].append(0) # if there is no BLAST match
+  
+  df = pd.DataFrame.from_dict(matrix_map)
+  df.index = index
+  df.to_csv('evalue_matrix.csv')
 
 
 if __name__ == '__main__':
