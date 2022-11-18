@@ -1,7 +1,8 @@
 __pycache__/
 blast/
+blast_results/
 data/
-9606.fasta
+human_proteome.fasta
 autoimmune_antigens.fasta
 autoimmune_data.xlsx
 non_autoimmune_proteins.fasta

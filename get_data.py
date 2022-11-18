@@ -13,7 +13,7 @@ import pandas as pd
 from Bio import SeqIO
 
 # TODO:
-# - Get all human protein data and remove autoimmune/cancer antigens
+
 
 def pull_iedb_data(table, antigen_type):
   '''
@@ -88,7 +88,6 @@ def pull_uniprot_antigens(antigens, antigen_type):
         continue
       else:
         f.write(r.text)
-  return 0
 
 def write_data_to_file(tcell, bcell, antigens, antigen_type):
   # output dataframes to one file
@@ -99,8 +98,6 @@ def write_data_to_file(tcell, bcell, antigens, antigen_type):
   antigens.to_excel(writer, sheet_name='Antigens', index=False)
 
   writer.save()
-
-  return 0 
 
 def get_antigens(tcell, bcell):
   '''
@@ -181,7 +178,7 @@ if __name__ == '__main__':
   print('Extracting autoimmune data...')
 
   with open('autoimmune_diseases.json' , 'r') as f:
-      diseases = json.load(f)
+    diseases = json.load(f)
 
   # read in autoimmune IEDB T cell and B cell assay tables
   print('Reading in autoimmune T cell assay data...')
