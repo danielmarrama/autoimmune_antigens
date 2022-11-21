@@ -47,6 +47,16 @@ def remove_files(antigen_id):
   for extension in ['pdb', 'phr', 'pin', 'psq', 'ptf', 'pot', 'pto', 'pjs']:
     os.remove(glob.glob('*.' + extension)[0])
 
+def convert_evalues_to_binary(value):
+  if value == 0:
+    return 0
+  elif value == 1:
+    return 1
+  elif x <1e-10:
+    return 1
+  else:
+    return 0
+
 def create_evalue_matrix(antigens):
   '''
   After running BLAST with one antigen against the rest,
@@ -80,6 +90,10 @@ def create_evalue_matrix(antigens):
   df = pd.DataFrame.from_dict(matrix_map)
   df.index = index
   df.to_csv('evalue_matrix.csv')
+
+  # binary matrix for making a protein graph
+  df = df.applymap(convert_evalues_to_binary)
+  df.to_csv('binary_evalue_matrix.csv')
 
 
 if __name__ == '__main__':
