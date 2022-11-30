@@ -19,7 +19,7 @@ def hobohm1(cutoff):
   antigens.sort(key=lambda x: -len(x)) # sort antigens by length
   
   unique_list = [antigens[0]] # start with longest antigen in unique list
-  
+  print(len(antigens))
   for antigen in antigens[1:]:
     write_unique_list(unique_list)
     write_single_antigen(antigen)
@@ -29,11 +29,15 @@ def hobohm1(cutoff):
     
     # check if any matches are >90% identity
     if (results['% identity'] > cutoff).any(): 
+      remove_files(antigen)
       continue
+      
     else:
+      remove_files(antigen)
       unique_list.append(antigen)
-
-    remove_files(antigen)
+  
+  with open('autoimmune_antigens2.fasta', 'w') as f2:
+    SeqIO.write(unique_list, f2, 'fasta')
 
 def write_unique_list(unique_list):
   '''
