@@ -174,6 +174,33 @@ def remove_ai_proteins():
         records.append(record)
     SeqIO.write(records, f, 'fasta')
 
+def pull_data_from_fasta(proteins, category):
+  data = []
+  for protein in proteins:
+    protein_data = []
+    protein_data.append(category)
+    protein_data.append(protein.id.split('|')[1])
+    try:
+      protein_data.append(re.search('GN=(.*?) ', protein.description).group(1))
+    except AttributeError:
+      protein_data.append('')
+    protein_data.append(int(re.search('PE=(.*?) ', protein.description).group(1)))
+    protein_data.append(str(protein.seq))
+    data.append(protein_data)
+  
+  return data
+
+
+def combine_data():
+  ai_antigens  = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
+  non_ai_proteins = list(SeqIO.parse('non_autoimmune_proteins.fasta', 'fasta'))
+
+  data = pull_data_from_fasta(ai_antigens, 'autoimmune') + pull_data_from_fasta(non_ai_proteins, 'non_autoimmune')
+  
+  df = pd.DataFrame(data, columns=['category', 'id', 'gene', 'pe_level', 'sequence'])
+  df.to_csv('combined_data.csv')
+
+
 if __name__ == '__main__':
   print('Extracting autoimmune data...')
 
@@ -207,4 +234,8 @@ if __name__ == '__main__':
 
   print('Removing autoimmune antigens from human proteome...')
   remove_ai_proteins()
-  print('Done')
+  print('Done.')
+
+  print('Combine data into one dataset...')
+  combine_data()
+  print('Done.')
