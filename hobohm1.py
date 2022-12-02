@@ -36,8 +36,8 @@ def hobohm1(cutoff):
       remove_files(antigen)
       unique_list.append(antigen)
   
-  with open('autoimmune_antigens2.fasta', 'w') as f2:
-    SeqIO.write(unique_list, f2, 'fasta')
+  with open('autoimmune_antigens.fasta', 'w') as f:
+    SeqIO.write(unique_list, f, 'fasta')
 
 def write_unique_list(unique_list):
   '''

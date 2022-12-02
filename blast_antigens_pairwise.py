@@ -52,7 +52,7 @@ def convert_evalues_to_binary(value):
     return 0
   elif value == 1:
     return 1
-  elif x <1e-10:
+  elif value <1e-10:
     return 1
   else:
     return 0
@@ -99,7 +99,7 @@ def create_evalue_matrix(antigens):
 if __name__ == '__main__':
 
   os.mkdir('blast_results')
-  antigens = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
+  antigens = list(SeqIO.parse('autoimmune_antigens2.fasta', 'fasta'))
 
   for antigen in antigens:
     antigen_id = antigen.id.split('|')[1]
