@@ -15,7 +15,7 @@ def hobohm1(cutoff):
   sequence is BLASTed against the unique list.
   '''
   columns = ['query', 'subject', '% identity', 'align length', 'mismatches', 'gap opens', 'q.start', 'q.end', 's.start', 's.end', 'evalue', 'bit score']
-  antigens = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
+  antigens = list(SeqIO.parse('../autoimmune_antigens.fasta', 'fasta'))
   antigens.sort(key=lambda x: -len(x)) # sort antigens by length
   
   unique_list = [antigens[0]] # start with longest antigen in unique list

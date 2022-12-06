@@ -157,7 +157,7 @@ def get_antigens(tcell, bcell):
 
 def get_human_proteome():
   r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
-  with open('9606.fasta', 'wb') as f:
+  with open('human_proteome.fasta', 'wb') as f:
     f.write(gzip.open(r.raw, 'rb').read())
 
 def remove_ai_proteins():

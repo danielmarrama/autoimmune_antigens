@@ -1,7 +1,8 @@
 __pycache__/
 blast/
-blast_results/
 data/
+method1/blast_results/
+method2/cd-hit/
 human_proteome.fasta
 autoimmune_antigens.fasta
 autoimmune_data.xlsx

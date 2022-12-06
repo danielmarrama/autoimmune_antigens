@@ -99,7 +99,7 @@ def create_evalue_matrix(antigens):
 if __name__ == '__main__':
 
   os.mkdir('blast_results')
-  antigens = list(SeqIO.parse('autoimmune_antigens2.fasta', 'fasta'))
+  antigens = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
 
   for antigen in antigens:
     antigen_id = antigen.id.split('|')[1]
