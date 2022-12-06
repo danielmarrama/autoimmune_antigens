@@ -143,7 +143,7 @@ def get_antigens(tcell, bcell):
     antigen_map[k][5] = ', '.join(set(antigen_map[k][5]))
 
   # put antigens into pandas DataFrame, reset and rename index
-  antigens = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
+  columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
               'Reference Count', 'Diseases', 'Targeted By']
   antigens = pd.DataFrame.from_dict(antigen_map, 
                                     orient = 'index', 
@@ -236,6 +236,6 @@ if __name__ == '__main__':
   remove_ai_proteins()
   print('Done.')
 
-  print('Combine data into one dataset...')
+  print('Combining data into one dataset...')
   combine_data()
   print('Done.')
