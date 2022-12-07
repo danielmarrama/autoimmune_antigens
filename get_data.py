@@ -81,7 +81,6 @@ def pull_uniprot_antigens(antigens, antigen_type):
   # use requests to get all autoimmune antigen sequences
   with open('%s_antigens.fasta' % antigen_type, 'w') as f:
     for idx in antigens['Protein ID']:
-      print(idx)
       i = idx.split(':')[1]
       r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
       if not r.text:
@@ -167,7 +166,7 @@ def remove_ai_proteins():
 
   records = []
   with open('non_autoimmune_proteins.fasta', 'w') as f:
-    for record in SeqIO.parse('9606.fasta', 'fasta'):
+    for record in SeqIO.parse('human_proteome.fasta', 'fasta'):
       if record.id.split('|')[1] in autoimmune_ids:
         continue
       else:
@@ -198,6 +197,9 @@ def combine_data():
   data = pull_data_from_fasta(ai_antigens, 'autoimmune') + pull_data_from_fasta(non_ai_proteins, 'non_autoimmune')
   
   df = pd.DataFrame(data, columns=['category', 'id', 'gene', 'pe_level', 'sequence'])
+
+  # make sure proteins are at least 10 residues
+  df = df[df['sequence'].str.len() >= 11]
   df.to_csv('combined_data.csv')
 
 
