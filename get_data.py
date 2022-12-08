@@ -175,9 +175,10 @@ def remove_ai_proteins():
 
 def pull_data_from_fasta(proteins, category):
   data = []
+  autoimmune = 1 if category == 'autoimmune' else 0
   for protein in proteins:
     protein_data = []
-    protein_data.append(category)
+    protein_data.append(autoimmune)
     protein_data.append(protein.id.split('|')[1])
     try:
       protein_data.append(re.search('GN=(.*?) ', protein.description).group(1))
@@ -196,7 +197,7 @@ def combine_data():
 
   data = pull_data_from_fasta(ai_antigens, 'autoimmune') + pull_data_from_fasta(non_ai_proteins, 'non_autoimmune')
   
-  df = pd.DataFrame(data, columns=['category', 'id', 'gene', 'pe_level', 'sequence'])
+  df = pd.DataFrame(data, columns=['autoimmune', 'id', 'gene', 'pe_level', 'sequence'])
 
   # make sure proteins are at least 10 residues
   df = df[df['sequence'].str.len() >= 11]
