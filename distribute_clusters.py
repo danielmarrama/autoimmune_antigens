@@ -4,7 +4,7 @@ from cdhit_reader import read_cdhit
 
 import pandas as pd
 
-df = pd.read_csv('../combined_data.csv', index_col=0)
+df = pd.read_csv('combined_data.csv', index_col=0)
 
 clusters = read_cdhit('human_db40.clstr')
 

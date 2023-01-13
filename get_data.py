@@ -52,6 +52,9 @@ def pull_iedb_data(table, antigen_type):
   else:
     raise(ValueError('Antigen type not specified. Antigen type requested : %s' % antigen_type))
   
+  if table == 'tcell':
+    df = df[df['linear_sequence'].str.len() >= 5]
+
   # create a column combining epitope and related object source antigen IDs
   df['source_antigen_iri'] = df['parent_source_antigen_iri'].fillna(df['r_object_source_molecule_iri'])
   # create a column combining epitope and related object source antigen names
