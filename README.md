@@ -14,7 +14,7 @@ can then be used to build a model to predict novel antigens.
 
 ### Pipeline
 1. Run [get_data.py](get_data.py).
-    1. Pulls autoimmune data, T cell and B cell assays, from the IEDB API looping through each autoimmune DOID in [autoimmune_diseases.json](autoimmune_disease.json).
+    1. Pulls autoimmune data, T cell and B cell assays, from the IEDB API looping through each autoimmune DOID in [autoimmune_diseases.json](autoimmune_diseases.json).
     2. Concatenates both T cell and B cell assay data into antigens and gets assay, epitope, and reference counts.
     3. Pulls all autoimmune antigen UniProt entries using their API.
     4. Pulls human proteome from UniProt (ID: UP000005640).
