@@ -1,20 +1,30 @@
-SOURCE: https://www.ncbi.nlm.nih.gov/books/NBK459459/
-B*27 - AS
-DQA1*03:01 - T1D
-DQA1*05:01 - T1D
-DQB1*02:01 - T1D
-DQB1*03:02 - T1D
-DRB1*03 - T1D
-DRB1*04 - T1D
-DRB1*04:02 - T1D
+https://www.ncbi.nlm.nih.gov/books/NBK459459/
+
+CLASS I:
+B*13:02 - Vitiligo
+B*27 - Ankylosing Spondylitis, Psoriasis
+B*39:06 - Psoriasis, T1DM, Takayasu's arteritis, GBS
+B*51:01 - Psoriasis, Behcet's Disease
+B*57:01 - Psoriasis
+C*06:02 - Vitiligo, Psoriasis
+C*12:03 - Psoriasis
+
+CLASS II:
+DQA1*03:01 - T1DM
+DQA1*05:01 - T1DM
+DQB1*02:01 - T1DM
+DQB1*03:02 - T1DM
+DRB1*03 - T1DM
+DRB1*04 - T1DM
+DRB1*04:02 - T1DM
 DQB1*06 - MS
 DRB1*15:01 - MS
 DRB1*15:03 - MS
 DRB1*01:01 - RA
 DRB1*04:04 - RA
 DRB1*13:01 - AIH
-DRB1*03:01 - SLE, SS, and T1D
-DRB1*04:05 - AIH, T1D, and RA
+DRB1*03:01 - SLE, SS, and T1DM
+DRB1*04:05 - AIH, T1DM, and RA
 DQB1*06:02 - MS
 DQB1*06:03 - AIH 
 DRB1*15 - MS
