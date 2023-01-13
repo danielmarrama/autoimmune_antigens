@@ -34,6 +34,4 @@ df.loc[df['id'].isin(k3), 'fold'] = 3
 df.loc[df['id'].isin(k4), 'fold'] = 4
 df.loc[df['id'].isin(k5), 'fold'] = 5
 
-print(df['fold'].value_counts())
-
 df.to_csv('combined_data.csv')
