@@ -17,14 +17,14 @@ DQB1*03:02 - T1DM
 DRB1*03 - T1DM
 DRB1*04 - T1DM
 DRB1*04:02 - T1DM
-DQB1*06 - MS
-DRB1*15:01 - MS
-DRB1*15:03 - MS
-DRB1*01:01 - RA
-DRB1*04:04 - RA
-DRB1*13:01 - AIH
-DRB1*03:01 - SLE, SS, and T1DM
-DRB1*04:05 - AIH, T1DM, and RA
-DQB1*06:02 - MS
-DQB1*06:03 - AIH 
-DRB1*15 - MS
+DQB1*06 - Multiple sclerosis
+DRB1*15:01 - Multiple sclerosis
+DRB1*15:03 - Multiple sclerosis
+DRB1*01:01 - Rheumatoid arthritis
+DRB1*04:04 - Rheumatoid arthritis
+DRB1*13:01 - Autoimmune hepatitis
+DRB1*03:01 - Systemic lupus erythematosus, Sjogren's syndrome, T1DM
+DRB1*04:05 - Autoimmune hepatitis, T1DM, Rheumatoid arthritis
+DQB1*06:02 - Multiple sclerosis
+DQB1*06:03 - Autoimmune hepatitis
+DRB1*15 - Multiple sclerosis

@@ -9,11 +9,12 @@ The IEDB contains curated immune epitope data from the scientific literature. Th
 ## Pipeline
 1. Run [get_data.py](get_data.py).
     1. Pulls autoimmune data, T cell and B cell assays, from the IEDB API looping through each autoimmune DOID in [autoimmune_diseases.json](autoimmune_diseases.json).
-    2. Concatenates both T cell and B cell assay data into antigens and gets assay, epitope, and reference counts.
-    3. Pulls all autoimmune antigen UniProt entries using their API.
-    4. Pulls human proteome from UniProt (ID: UP000005640).
-    5. Separates autoimmune antigens from the rest of the human proteome into different files (autoimmune_antigens.fasta and non_autoimmune_proteins.fasta).
-    6. Combines all data into one file ([combined_data.csv](combined_data.csv)) which has autoimmune indicator and sequence.
+    2. The canonical UniProt protein ID for each gene replaces the other 
+    3. Concatenates both T cell and B cell assay data into antigens and gets assay, epitope, and reference counts.
+    4. Pulls all autoimmune antigen UniProt entries using their API.
+    5. Pulls human proteome from UniProt (ID: UP000005640).
+    6. Separates autoimmune antigens from the rest of the human proteome into different files (autoimmune_antigens.fasta and non_autoimmune_proteins.fasta).
+    7. Combines all data into one file ([combined_data.csv](combined_data.csv)) which has autoimmune indicator and sequence.
 2. Run [clustering.sh](clustering.sh).
     1. This requires "cd-hit" folder which can be downloaded [here](https://github.com/weizhongli/cdhit/releases).
     2. Uses CD-HIT to cluster the entire human proteome at 40% sequence identity. This will cluster the human proteome into ~13,000 clusters with range of 1-160 proteins.

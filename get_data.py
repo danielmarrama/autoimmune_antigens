@@ -8,6 +8,7 @@ import re
 import requests
 import json
 import gzip
+import pickle
 import pandas as pd
 
 from Bio import SeqIO
@@ -107,7 +108,22 @@ def get_antigens(tcell, bcell):
   their counts of epitopes, assays, and references.
   '''
   def parse_diseases(x):
+    '''Parse disease names into comma separated list.'''
     return ', '.join(re.findall('{"(.*?)"}', x))
+
+  # replace the UniProt IDs that are not the canonical protein ID for each gene
+  # this is from the protein tree work
+  with open('canonical_protein_mapping.pickle', 'rb') as f:
+    canonical_protein_mapping = pickle.load(f)
+
+  tcell.to_csv('tcell_test.csv', index=False)
+  # separate actual ID from "UNIPROT:ID"
+  tcell['source_antigen_iri'] = tcell['source_antigen_iri'].str.split(':').str[1]
+  bcell['source_antigen_iri'] = bcell['source_antigen_iri'].str.split(':').str[1]
+
+  # replace IDs with canonical ID
+  tcell['source_antigen_iri'] = tcell['source_antigen_iri'].map(canonical_protein_mapping)
+  bcell['source_antigen_iri'] = bcell['source_antigen_iri'].map(canonical_protein_mapping)
 
   # aggregate data by protein ID and get antigen name, organism, diseases, cell type, and 
   # epitope, assay and reference count (T cell)
