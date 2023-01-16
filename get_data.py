@@ -84,9 +84,8 @@ def iterate_api(url, params):
 def pull_uniprot_antigens(antigens, antigen_type):
   # use requests to get all autoimmune antigen sequences
   with open('%s_antigens.fasta' % antigen_type, 'w') as f:
-    for idx in antigens['Protein ID']:
-      i = idx.split(':')[1]
-      r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % i)
+    for id in antigens['Protein ID']:
+      r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % id)
       if not r.text:
         continue
       else:
@@ -116,7 +115,6 @@ def get_antigens(tcell, bcell):
   with open('canonical_protein_mapping.pickle', 'rb') as f:
     canonical_protein_mapping = pickle.load(f)
 
-  tcell.to_csv('tcell_test.csv', index=False)
   # separate actual ID from "UNIPROT:ID"
   tcell['source_antigen_iri'] = tcell['source_antigen_iri'].str.split(':').str[1]
   bcell['source_antigen_iri'] = bcell['source_antigen_iri'].str.split(':').str[1]
@@ -220,7 +218,7 @@ def combine_data():
 
   # make sure proteins are at least 10 residues
   df = df[df['sequence'].str.len() >= 11]
-  df.to_csv('combined_data.csv')
+  df.to_csv('combined_data.csv', index=False)
 
 
 if __name__ == '__main__':

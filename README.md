@@ -9,7 +9,7 @@ The IEDB contains curated immune epitope data from the scientific literature. Th
 ## Pipeline
 1. Run [get_data.py](get_data.py).
     1. Pulls autoimmune data, T cell and B cell assays, from the IEDB API looping through each autoimmune DOID in [autoimmune_diseases.json](autoimmune_diseases.json).
-    2. The canonical UniProt protein ID for each gene replaces the other 
+    2. The canonical UniProt protein ID for each gene replaces the other UniProt IDs so we get the "true" antigen.
     3. Concatenates both T cell and B cell assay data into antigens and gets assay, epitope, and reference counts.
     4. Pulls all autoimmune antigen UniProt entries using their API.
     5. Pulls human proteome from UniProt (ID: UP000005640).
