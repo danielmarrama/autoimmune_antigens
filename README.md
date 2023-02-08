@@ -28,3 +28,15 @@ The IEDB contains curated immune epitope data from the scientific literature. Th
 1. Extract and validate autoimmune antigen data from the [IEDB](https://www.iedb.org/). **DONE**
 2. Explore and identify features of autoimmune antigens. **IN PROGRESS**
 3. Build a model for autoimmune antigen prediction.
+
+## Features
+- ~~Amino acid composition~~
+- Immunogenicity score
+- MHC binding to risk alleles
+- Alpha-helix + beta-sheet counts
+- Acidic/basic residue counts
+- Hydrophilicity vs hydrophobicity
+- Protein disorder
+- Number of RNA splicing isoforms
+- Citrullination - arginines on the surface
+- Mimicry score (conservation to autoimmune associated-pathogens)

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-from cdhit_reader import read_cdhit
-
 import pandas as pd
 
+from cdhit_reader import read_cdhit
+
+# read in proteome data
 df = pd.read_csv('combined_data.csv', index_col=0)
 
+# read in human proteome clusters from CD-HIT
 clusters = read_cdhit('human_db40.clstr')
 
 i = 1

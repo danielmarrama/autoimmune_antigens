@@ -16,6 +16,22 @@ from Bio import SeqIO
 # TODO:
 
 
+def iterate_api(url, params):
+  """
+  IEDB API only allows 10,000 entries per request. We use this function to loop through
+  all requests using our URL and parameters until we receive no more data.
+  """
+  df = pd.DataFrame()
+  while(True):
+    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+    try:
+      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+      params['offset'] += 10000
+    except pd.errors.EmptyDataError:
+      break
+  
+  return df
+
 def pull_iedb_data(table, antigen_type):
   '''
   Extracts T cell and B cell positive assay data from the IEDB.
@@ -24,7 +40,7 @@ def pull_iedb_data(table, antigen_type):
   '''
   if antigen_type == 'autoimmune':
     df = pd.DataFrame()
-    for doid in diseases.keys(): 
+    for doid in diseases.keys():
 
       # first get the total number of assays as first request to loop through API
       url = 'https://query-api.iedb.org/%s_search' % table
@@ -65,22 +81,6 @@ def pull_iedb_data(table, antigen_type):
   
   return df
 
-def iterate_api(url, params):
-  """
-  IEDB API only allows 10,000 entries per request. We use this function to loop through
-  all requests using our URL and parameters until we receive no more data.
-  """
-  df = pd.DataFrame()
-  while(True):
-    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-    try:
-      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
-      params['offset'] += 10000
-    except pd.errors.EmptyDataError:
-      break
-  
-  return df
-
 def pull_uniprot_antigens(antigens, antigen_type):
   # use requests to get all autoimmune antigen sequences
   with open('%s_antigens.fasta' % antigen_type, 'w') as f:
@@ -93,13 +93,11 @@ def pull_uniprot_antigens(antigens, antigen_type):
 
 def write_data_to_file(tcell, bcell, antigens, antigen_type):
   # output dataframes to one file
-  writer = pd.ExcelWriter('%s_data.xlsx' % antigen_type, engine='xlsxwriter')
-
-  tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
-  bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
-  antigens.to_excel(writer, sheet_name='Antigens', index=False)
-
-  writer.save()
+  with pd.ExcelWriter('%s_data.xlsx' % antigen_type, engine='xlsxwriter') as writer:
+    tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
+    bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
+    antigens.to_excel(writer, sheet_name='Antigens', index=False)
+  
 
 def get_antigens(tcell, bcell):
   '''
