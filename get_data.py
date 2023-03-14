@@ -14,6 +14,7 @@ import pandas as pd
 from Bio import SeqIO
 
 # TODO:
+# * use only source antigen column and see how many are missing without filling in with parent proteins
 
 
 def iterate_api(url, params):
