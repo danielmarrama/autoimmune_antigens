@@ -1,7 +1,6 @@
 __pycache__/
 blast/
 cd-hit/
-data/
 method1/blast_results/
 fold*
 human_proteome.fasta
