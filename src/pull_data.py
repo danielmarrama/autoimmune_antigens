@@ -17,58 +17,28 @@ from Bio import SeqIO
 # * use only source antigen column and see how many are missing without filling in with parent proteins
 
 
-def iterate_api(url, params):
-  """
-  IEDB API only allows 10,000 entries per request. We use this function to loop through
-  all requests using our URL and parameters until we receive no more data.
+
+def pull_assay_data(table: str) -> pd.DataFrame:
+  """Extracts T cell and B cell positive assay data from the IEDB based on disease ID.
+
+  Args:
+    table (str): table to pull data from. Either 'tcell' or 'bcell'.
   """
   df = pd.DataFrame()
-  while(True):
-    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-    try:
-      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
-      params['offset'] += 10000
-    except pd.errors.EmptyDataError:
-      break
-  
-  return df
-
-def pull_iedb_data(table, antigen_type):
-  '''
-  Extracts T cell and B cell positive assay data from the IEDB.
-  antigen_type = 'autoimmune' or 'cancer'
-  Parameter table = 'tcell' or 'bcell' to specify. 
-  '''
-  if antigen_type == 'autoimmune':
-    df = pd.DataFrame()
-    for doid in diseases.keys():
-
-      # first get the total number of assays as first request to loop through API
-      url = 'https://query-api.iedb.org/%s_search' % table
-      params = {'order': 'structure_id',
-                'qualitative_measure': 'neq.Negative', # select positive assays only
-                'disease_iris': f'cs.{{{"DOID:"+doid}}}',
-                'offset': 0}
-      
-      df = pd.concat([df, iterate_api(url, params)])
-    
-    # select epitopes where host and source organism are identical
-    df = df[(df['host_organism_iri'] == df['parent_source_antigen_source_org_iri']) | # OR
-            (df['host_organism_iri'] == df['r_object_source_organism_iri'])]
-  
-  elif antigen_type == 'cancer':
+  for doid in diseases.keys():
 
     # first get the total number of assays as first request to loop through API
     url = 'https://query-api.iedb.org/%s_search' % table
     params = {'order': 'structure_id',
-              'qualitative_measure': 'neq.Negative',
-              'or': '(e_related_object_type.eq.neo-epitope, immunization_description.plfts."Occurrence of cancer")',
+              'qualitative_measure': 'neq.Negative', # select positive assays only
+              'disease_iris': f'cs.{{{"DOID:"+doid}}}',
               'offset': 0}
-      
-    df = iterate_api(url, params)
+    
+    df = pd.concat([df, iterate_api(url, params)])
   
-  else:
-    raise(ValueError('Antigen type not specified. Antigen type requested : %s' % antigen_type))
+  # select epitopes where host and source organism are identical
+  df = df[(df['host_organism_iri'] == df['parent_source_antigen_source_org_iri']) | # OR
+          (df['host_organism_iri'] == df['r_object_source_organism_iri'])]  
   
   if table == 'tcell':
     df = df[df['linear_sequence'].str.len() >= 5]
@@ -82,31 +52,68 @@ def pull_iedb_data(table, antigen_type):
   
   return df
 
-def pull_uniprot_antigens(antigens, antigen_type):
-  # use requests to get all autoimmune antigen sequences
-  with open('%s_antigens.fasta' % antigen_type, 'w') as f:
-    for id in antigens['Protein ID']:
-      r = requests.get('https://www.uniprot.org/uniprot/%s.fasta' % id)
-      if not r.text:
+
+def iterate_api(url: str, params: dict) -> pd.DataFrame:
+  """IEDB API only allows 10,000 entries per request. We use this function to loop through
+  all requests using our URL and parameters until we receive no more data.
+
+  Args:
+    url (str): URL to IEDB API.
+    params (dict): parameters to pass to the API. 
+  """
+  df = pd.DataFrame()
+  while(True):
+    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
+    try:
+      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
+      params['offset'] += 10000
+    except pd.errors.EmptyDataError:
+      break
+  
+  return df
+
+
+def pull_uniprot_antigens(antigens: pd.DataFrame) -> None:
+  """Pulls antigen sequences from UniProt based on protein ID.
+  
+  Args:
+    antigens (pd.DataFrame): DataFrame of antigens with protein IDs.
+  """
+  with open('autoimmune_antigens.fasta', 'w') as f:
+    for uniprot_id in antigens['Protein ID']:
+      r = requests.get(f'https://www.uniprot.org/uniprot/{uniprot_id}.fasta')
+      if not r.text: # skip if no sequence
         continue
       else:
         f.write(r.text)
 
-def write_data_to_file(tcell, bcell, antigens, antigen_type):
-  # output dataframes to one file
-  with pd.ExcelWriter('%s_data.xlsx' % antigen_type, engine='xlsxwriter') as writer:
+
+def write_data_to_file(
+  tcell: pd.DataFrame, bcell: pd.DataFrame, antigens: pd.DataFrame
+) -> None:
+  """Writes T cell, B cell, and antigen data to Excel file.
+  
+  Args:
+    tcell (pd.DataFrame): T cell assay data.
+    bcell (pd.DataFrame): B cell assay data.
+    antigens (pd.DataFrame): antigen data - all antigens sourced from assay data.
+  """
+  with pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter') as writer:
     tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
     bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
     antigens.to_excel(writer, sheet_name='Antigens', index=False)
-  
 
-def get_antigens(tcell, bcell):
-  '''
-  Concatenate all T cell and B cell assay data to get antigens and
+
+def get_antigens(tcell: pd.DataFrame, bcell: pd.DataFrame) -> pd.DataFrame:
+  """Concatenate all T cell and B cell assay data to get antigens and
   their counts of epitopes, assays, and references.
-  '''
-  def parse_diseases(x):
-    '''Parse disease names into comma separated list.'''
+  
+  Args:
+    tcell (pd.DataFrame): T cell assay data.
+    bcell (pd.DataFrame): B cell assay data.
+  """
+  def parse_diseases(x: str) -> str:
+    """Parse disease names into comma separated list. Args: x: str of disease names."""
     return ', '.join(re.findall('{"(.*?)"}', x))
 
   # replace the UniProt IDs that are not the canonical protein ID for each gene
@@ -170,12 +177,16 @@ def get_antigens(tcell, bcell):
 
   return antigens
 
-def get_human_proteome():
+
+def get_human_proteome() -> None:
+  """Pulls human proteome from UniProt."""
   r = requests.get('https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz', stream=True)
   with open('human_proteome.fasta', 'wb') as f:
     f.write(gzip.open(r.raw, 'rb').read())
 
-def remove_ai_proteins():
+
+def remove_autoimmune_antigens_from_proteome() -> None:
+  """Removes autoimmune antigens from human proteome file."""
   autoimmune_ids = []
   for record in list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta')):
     autoimmune_ids.append(record.id.split('|')[1])
@@ -189,7 +200,14 @@ def remove_ai_proteins():
         records.append(record)
     SeqIO.write(records, f, 'fasta')
 
-def pull_data_from_fasta(proteins, category):
+
+def pull_data_from_fasta(proteins: list, category: str) -> list:
+  """Pulls data from FASTA file and returns list of lists of data.
+  
+  Args:
+    proteins (list): list of SeqIO records.
+    category (str): category of proteins. Either 'autoimmune' or 'non_autoimmune'.
+  """
   data = []
   autoimmune = 1 if category == 'autoimmune' else 0
   for protein in proteins:
@@ -207,7 +225,8 @@ def pull_data_from_fasta(proteins, category):
   return data
 
 
-def combine_data():
+def combine_data() -> None:
+  """Combines autoimmune antigen and non-autoimmune protein data into one dataset."""
   ai_antigens  = list(SeqIO.parse('autoimmune_antigens.fasta', 'fasta'))
   non_ai_proteins = list(SeqIO.parse('non_autoimmune_proteins.fasta', 'fasta'))
 
@@ -228,11 +247,11 @@ if __name__ == '__main__':
 
   # read in autoimmune IEDB T cell and B cell assay tables
   print('Reading in autoimmune T cell assay data...')
-  tcell = pull_iedb_data('tcell', 'autoimmune')
+  tcell = pull_assay_data('tcell', 'autoimmune')
   print('Done.')
 
   print('Reading in autoimmune B cell assay data...')
-  bcell = pull_iedb_data('bcell', 'autoimmune')
+  bcell = pull_assay_data('bcell', 'autoimmune')
   print('Done.')
   
   # count antigens and reduce antigens to those with more than 1 reference
@@ -244,7 +263,7 @@ if __name__ == '__main__':
   print('Done.')
 
   print('Getting autoimmune antigen sequences from UniProt...')
-  pull_uniprot_antigens(antigens, 'autoimmune')
+  pull_uniprot_antigens(antigens)
   print('Done')
 
   print('Getting human proteome from UniProt...')
@@ -252,7 +271,7 @@ if __name__ == '__main__':
   print('Done.')
 
   print('Removing autoimmune antigens from human proteome...')
-  remove_ai_proteins()
+  remove_autoimmune_antigens_from_proteome()
   print('Done.')
 
   print('Combining data into one dataset...')
