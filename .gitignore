@@ -1,3 +1,4 @@
+.ipynb_checkpoints/
 __pycache__/
 blast/
 cd-hit/
@@ -7,3 +8,7 @@ human_proteome.fasta
 autoimmune_antigens.csv
 autoimmune_antigens.fasta
 non_autoimmune_proteins.fasta
+
+
+# locked files
+*.~lock*

@@ -49,6 +49,28 @@ def pull_assay_data(assay: str) -> pd.DataFrame:
   return clean_dataframe(df, assay)
 
 
+def iterate_api(url: str, params: dict) -> pd.DataFrame:
+  """IEDB API only allows 10,000 entries per request. We use this function to loop through
+  all requests using our URL and parameters until we receive no more data.
+
+  Args:
+    url (str): URL to IEDB API.
+    params (dict): parameters to pass to the API. 
+  """
+  df = pd.DataFrame()
+  while(True):
+    
+    r = requests.get(url, params=params)
+    r.raise_for_status()
+
+    df = pd.concat([df, pd.read_json(r.text)])
+    params['offset'] += 10000
+    if r.text == '[]':
+      break
+  
+  return df
+
+
 def clean_dataframe(df: pd.DataFrame, assay: str) -> pd.DataFrame:
   """Clean the dataframe returned from the IEDB API. This includes extracting
   the relevant information from the curated_source_antigen column, and 
@@ -89,24 +111,23 @@ def clean_dataframe(df: pd.DataFrame, assay: str) -> pd.DataFrame:
   return df
 
 
-def iterate_api(url: str, params: dict) -> pd.DataFrame:
-  """IEDB API only allows 10,000 entries per request. We use this function to loop through
-  all requests using our URL and parameters until we receive no more data.
-
-  Args:
-    url (str): URL to IEDB API.
-    params (dict): parameters to pass to the API. 
-  """
-  df = pd.DataFrame()
-  while(True):
-    s = requests.get(url, params=params, headers={'accept': 'text/csv', 'Prefer': 'count=exact'})
-    try:
-      df = pd.concat([df, pd.read_csv(io.StringIO(s.content.decode('utf-8')))])
-      params['offset'] += 10000
-    except pd.errors.EmptyDataError:
-      break
+def write_assay_data_to_file(tcell: pd.DataFrame, bcell: pd.DataFrame) -> None:
+  """Writes T cell and B cell assay data to Excel file.
   
-  return df
+  Args:
+    tcell (pd.DataFrame): autoimmune T cell assay data.
+    bcell (pd.DataFrame): autoimmune B cell assay data.
+  """
+  def filter_by_unique_references(group):
+    return group['reference_id'].nunique() >= 2
+  
+  combined_df = pd.concat([tcell, bcell])
+
+  # keep only rows whereby source antigen has at least two references
+  grouped = combined_df.groupby('curated_source_antigen_accession')
+  assay_data = grouped.filter(filter_by_unique_references)
+
+  assay_data.to_csv(data_path / 'raw_assay_data.tsv', sep='\t', index=False)
 
 
 def pull_uniprot_antigens(antigens: pd.DataFrame) -> None:
@@ -122,22 +143,6 @@ def pull_uniprot_antigens(antigens: pd.DataFrame) -> None:
         continue
       else:
         f.write(r.text)
-
-
-def write_data_to_file(
-  tcell: pd.DataFrame, bcell: pd.DataFrame, antigens: pd.DataFrame
-) -> None:
-  """Writes T cell, B cell, and antigen data to Excel file.
-  
-  Args:
-    tcell (pd.DataFrame): T cell assay data.
-    bcell (pd.DataFrame): B cell assay data.
-    antigens (pd.DataFrame): antigen data - all antigens sourced from assay data.
-  """
-  with pd.ExcelWriter('autoimmune_data.xlsx', engine='xlsxwriter') as writer:
-    tcell.to_excel(writer, sheet_name='T Cell Assays', index=False)
-    bcell.to_excel(writer, sheet_name='B Cell Assays', index=False)
-    antigens.to_excel(writer, sheet_name='Antigens', index=False)
 
 
 def get_antigens(tcell: pd.DataFrame, bcell: pd.DataFrame) -> pd.DataFrame:
@@ -288,26 +293,24 @@ if __name__ == '__main__':
   print('Pull autoimmune B cell assay data...')
   bcell = pull_assay_data('bcell')
   print('Done.')
+
+  print('Writing assay data to file...')
+  write_assay_data_to_file(tcell, bcell)
+  print('Done.')
   
-  antigens = get_antigens(tcell, bcell)
-  antigens = antigens[antigens['Reference Count'] > 1] # remove antigens with
-                                                       # only one reference
-  print('Writing autoimmune data...')
-  write_data_to_file(tcell, bcell, antigens, 'autoimmune')
-  print('Done.')
 
-  print('Getting autoimmune antigen sequences from UniProt...')
-  pull_uniprot_antigens(antigens)
-  print('Done')
+  # print('Getting autoimmune antigen sequences from UniProt...')
+  # pull_uniprot_antigens(antigens)
+  # print('Done')
 
-  print('Getting human proteome from UniProt...')
-  get_human_proteome()
-  print('Done.')
+  # print('Getting human proteome from UniProt...')
+  # get_human_proteome()
+  # print('Done.')
 
-  print('Removing autoimmune antigens from human proteome...')
-  remove_autoimmune_antigens_from_proteome()
-  print('Done.')
+  # print('Removing autoimmune antigens from human proteome...')
+  # remove_autoimmune_antigens_from_proteome()
+  # print('Done.')
 
-  print('Combining data into one dataset...')
-  combine_data()
-  print('Done.')
+  # print('Combining data into one dataset...')
+  # combine_data()
+  # print('Done.')
