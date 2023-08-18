@@ -10,6 +10,7 @@ import json
 import gzip
 import pickle
 import pandas as pd
+from pathlib import Path
 
 from Bio import SeqIO
 
@@ -17,18 +18,20 @@ from Bio import SeqIO
 # * use only source antigen column and see how many are missing without filling in with parent proteins
 
 
+data_path = Path(__file__).parent.parent / 'data'
 
-def pull_assay_data(table: str) -> pd.DataFrame:
+
+def pull_assay_data(assay: str) -> pd.DataFrame:
   """Extracts T cell and B cell positive assay data from the IEDB based on disease ID.
 
   Args:
-    table (str): table to pull data from. Either 'tcell' or 'bcell'.
+    assay (str): assay to pull data from. Either 'tcell' or 'bcell'.
   """
   df = pd.DataFrame()
   for doid in diseases.keys():
 
     # first get the total number of assays as first request to loop through API
-    url = 'https://query-api.iedb.org/%s_search' % table
+    url = f'https://query-api.iedb.org/{assay}_search'
     params = {'order': 'structure_id',
               'qualitative_measure': 'neq.Negative', # select positive assays only
               'disease_iris': f'cs.{{{"DOID:"+doid}}}',
@@ -40,16 +43,49 @@ def pull_assay_data(table: str) -> pd.DataFrame:
   df = df[(df['host_organism_iri'] == df['parent_source_antigen_source_org_iri']) | # OR
           (df['host_organism_iri'] == df['r_object_source_organism_iri'])]  
   
-  if table == 'tcell':
+  if assay == 'tcell': # discard epitopes with less than 5 residues
     df = df[df['linear_sequence'].str.len() >= 5]
-
-  # create a column combining epitope and related object source antigen IDs
-  df['source_antigen_iri'] = df['parent_source_antigen_iri'].fillna(df['r_object_source_molecule_iri'])
-  # create a column combining epitope and related object source antigen names
-  df['source_antigen_name'] = df['parent_source_antigen_name'].fillna(df['r_object_source_molecule_name'])
-  # create a column combining epitope and related object source organism names
-  df['source_organism_name'] = df['source_organism_name'].fillna(df['r_object_source_organism_name'])
   
+  return clean_dataframe(df, assay)
+
+
+def clean_dataframe(df: pd.DataFrame, assay: str) -> pd.DataFrame:
+  """Clean the dataframe returned from the IEDB API. This includes extracting
+  the relevant information from the curated_source_antigen column, and 
+  exploding the disease_iris and disease_names columns into separate rows.
+
+  Args:
+    df (pd.DataFrame): DataFrame returned after pulling the IEDB API.
+    assay (str): assay type. Either 'tcell' or 'bcell'.
+  """
+  df['curated_source_antigen_accession'] = df['curated_source_antigen'].map(
+    lambda x: x['accession'] if isinstance(x, dict) else None)
+  
+  df['curated_source_antigen_name'] = df['curated_source_antigen'].map(
+    lambda x: x['name'] if isinstance(x, dict) else None)
+  
+  df['curated_source_organism_id'] = df['curated_source_antigen'].map(
+    lambda x: x['source_organism_iri'] if isinstance(x, dict) else None)
+  
+  df['curated_source_organism_name'] = df['curated_source_antigen'].map(
+    lambda x: x['source_organism_name'] if isinstance(x, dict) else None)
+
+  # explode the lists in disease_iris and disease_names to make separate rows for each disease
+  df = df.explode(column='disease_iris').reset_index(drop=True)
+  df['disease_names'] = df.explode(
+    column='disease_names')['disease_names'].reset_index(drop=True)
+
+  # drop curated_source_antigen column
+  df.drop('curated_source_antigen', axis=1, inplace=True)
+
+  # add column for assay type
+  if assay == 'tcell':
+    df['assay_type'] = 'T Cell'
+  elif assay == 'bcell':
+    df['assay_type'] = 'B Cell'
+  else:
+    raise ValueError('Assay must be either "tcell" or "bcell".')
+
   return df
 
 
@@ -167,11 +203,12 @@ def get_antigens(tcell: pd.DataFrame, bcell: pd.DataFrame) -> pd.DataFrame:
   # put antigens into pandas DataFrame, reset and rename index
   columns = ['Protein Name', 'Source Organism', 'Epitope Count', 'Assay Count',
               'Reference Count', 'Diseases', 'Targeted By']
-  antigens = pd.DataFrame.from_dict(antigen_map, 
-                                    orient = 'index', 
-                                    columns = columns
-                                    ).reset_index().rename(
-                                    columns={'index': 'Protein ID'})
+  antigens = pd.DataFrame.from_dict(
+    antigen_map, 
+    orient = 'index', 
+    columns = columns
+    ).reset_index().rename(
+    columns={'index': 'Protein ID'})
 
   antigens['Diseases'] = antigens['Diseases'].apply(parse_diseases)
 
@@ -240,24 +277,21 @@ def combine_data() -> None:
 
 
 if __name__ == '__main__':
-  print('Extracting autoimmune data...')
 
-  with open('autoimmune_diseases.json' , 'r') as f:
+  with open(data_path / 'autoimmune_diseases.json' , 'r') as f:
     diseases = json.load(f)
 
-  # read in autoimmune IEDB T cell and B cell assay tables
-  print('Reading in autoimmune T cell assay data...')
-  tcell = pull_assay_data('tcell', 'autoimmune')
+  print('Pulling autoimmune T cell assay data...')
+  tcell = pull_assay_data('tcell')
   print('Done.')
 
-  print('Reading in autoimmune B cell assay data...')
-  bcell = pull_assay_data('bcell', 'autoimmune')
+  print('Pull autoimmune B cell assay data...')
+  bcell = pull_assay_data('bcell')
   print('Done.')
   
-  # count antigens and reduce antigens to those with more than 1 reference
   antigens = get_antigens(tcell, bcell)
-  antigens = antigens[antigens['Reference Count'] > 1]
-
+  antigens = antigens[antigens['Reference Count'] > 1] # remove antigens with
+                                                       # only one reference
   print('Writing autoimmune data...')
   write_data_to_file(tcell, bcell, antigens, 'autoimmune')
   print('Done.')
