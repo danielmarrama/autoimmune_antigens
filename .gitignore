@@ -6,7 +6,6 @@ method1/blast_results/
 fold*
 human_proteome.fasta
 autoimmune_antigens.csv
-autoimmune_antigens.fasta
 non_autoimmune_proteins.fasta
 
 
